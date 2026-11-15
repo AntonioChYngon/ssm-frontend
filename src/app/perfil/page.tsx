@@ -10,7 +10,7 @@ import type { CanalNotificacion } from "@/lib/types";
 
 const DATOS: [IconName, string, string][] = [
   ["correo", "Correo institucional", "jorge.ramirez@acatlan.unam.mx"],
-  ["usuario", "Rol", "Capturista"],
+  ["usuario", "Rol", "Captura"],
   ["documento", "Licenciatura asignada", "Actuaría"],
   ["reloj", "Alta en el sistema", "14/08/2025"],
 ];
@@ -43,7 +43,7 @@ const PerfilPage = () => {
             <div className="stack" style={{ alignItems: "center", gap: 8 }}>
               <Avatar iniciales="JR" size={96} accent />
               <h2 className="t-h2">Lic. Jorge Ramírez</h2>
-              <Badge estado="En revisión">Capturista</Badge>
+              <Badge estado="En revisión">Captura</Badge>
             </div>
             <hr className="divider" />
             {DATOS.map(([icon, k, v]) => (

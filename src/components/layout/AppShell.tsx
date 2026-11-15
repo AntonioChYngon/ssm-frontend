@@ -3,19 +3,65 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/Display";
 import { Icon } from "@/components/ui/Icon";
 import { navPorRol } from "@/lib/nav";
-import type { Rol } from "@/lib/types";
+import { cerrarSesion as borrarSesion, leerUsuarioSesion, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
+import { ROL_LABEL, type Rol, type Usuario } from "@/lib/types";
 import { NotificationPanel } from "./NotificationPanel";
+
+type Area = "admin" | "licenciatura" | "comun";
 
 type Perfil = { nombre: string; rolLabel: string; iniciales: string; rol: Rol };
 
-// Sesión de ejemplo por sección. Al conectar el backend se reemplaza por el usuario del token (GET /auth/me).
-const PERFILES: Record<"admin" | "licenciatura", Perfil> = {
+// Perfil de ejemplo por sección: solo se usa en modo demostración si no hay sesión guardada.
+const PERFILES_DEMO: Record<"admin" | "licenciatura", Perfil> = {
   admin: { nombre: "Mtra. María González", rolLabel: "Administradora", iniciales: "MG", rol: "ADMINISTRADOR" },
-  licenciatura: { nombre: "Lic. Jorge Ramírez", rolLabel: "Capturista · Actuaría", iniciales: "JR", rol: "CAPTURISTA" },
+  licenciatura: { nombre: "Lic. Jorge Ramírez", rolLabel: "Captura · Actuaría", iniciales: "JR", rol: "CAPTURA" },
+};
+
+const iniciales = (nombre: string) =>
+  nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("");
+
+const perfilDesdeUsuario = (usuario: Usuario): Perfil => ({
+  nombre: usuario.nombre,
+  rolLabel: usuario.licenciatura ? `${ROL_LABEL[usuario.rol]} · ${usuario.licenciatura}` : ROL_LABEL[usuario.rol],
+  iniciales: iniciales(usuario.nombre),
+  rol: usuario.rol,
+});
+
+/** Lee la sesión guardada y la confirma con GET /auth/me. Sin sesión válida regresa al login. */
+const usePerfil = (area: Area) => {
+  const router = useRouter();
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+
+  useEffect(() => {
+    const guardado = leerUsuarioSesion();
+    if (!guardado && usaMocks()) {
+      setPerfil(PERFILES_DEMO[area === "admin" ? "admin" : "licenciatura"]);
+      return;
+    }
+    if (!guardado) {
+      router.replace("/login");
+      return;
+    }
+    // "comun" (Mi perfil) sirve a todos los roles; las demás áreas son exclusivas.
+    const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (guardado.rol === "ADMINISTRADOR");
+    if (enAreaIncorrecta) {
+      router.replace(rutaInicio(guardado.rol));
+      return;
+    }
+    setPerfil(perfilDesdeUsuario(guardado));
+    obtenerUsuarioActual()
+      .then((usuario) => setPerfil(perfilDesdeUsuario(usuario)))
+      .catch(() => {
+        borrarSesion();
+        router.replace("/login");
+      });
+  }, [area, router]);
+
+  return perfil;
 };
 
 export const Logos = ({ height = 48 }: { height?: number }) => (
@@ -25,15 +71,20 @@ export const Logos = ({ height = 48 }: { height?: number }) => (
   </span>
 );
 
-export const AppShell = ({ area, children }: { area: "admin" | "licenciatura"; children: ReactNode }) => {
+export const AppShell = ({ area, children }: { area: Area; children: ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const [panelAbierto, setPanelAbierto] = useState(false);
-  const perfil = PERFILES[area];
+  const perfil = usePerfil(area);
+
+  // Mientras se confirma la sesión no se muestra contenido protegido.
+  if (!perfil) {
+    return <main className="t-muted" style={{ padding: 48 }} aria-busy="true">Verificando tu sesión…</main>;
+  }
   const secciones = navPorRol(perfil.rol);
 
   const cerrarSesion = () => {
-    window.sessionStorage.removeItem("ssm.token");
+    borrarSesion();
     router.push("/login");
   };
 

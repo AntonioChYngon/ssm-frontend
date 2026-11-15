@@ -7,7 +7,7 @@ import { PublicFooter, SplitLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Display";
 import { Checkbox, TextField } from "@/components/ui/Field";
-import { ApiError, esCorreoInstitucional, login, rutaInicio } from "@/lib/api";
+import { ApiError, MENSAJE_DOMINIO, esCorreoInstitucional, guardarSesion, login, rutaInicio, usaMocks } from "@/lib/api";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -21,14 +21,14 @@ const LoginPage = () => {
     event.preventDefault();
     setErrorGeneral(undefined);
     if (!esCorreoInstitucional(correo)) {
-      setErrorCorreo("Usa tu correo institucional @acatlan.unam.mx o @unam.mx.");
+      setErrorCorreo(MENSAJE_DOMINIO);
       return;
     }
     setErrorCorreo(undefined);
     setEnviando(true);
     try {
       const sesion = await login(correo, contrasena);
-      window.sessionStorage.setItem("ssm.token", sesion.token);
+      guardarSesion(sesion);
       router.push(rutaInicio(sesion.usuario.rol));
     } catch (error) {
       setErrorGeneral(error instanceof ApiError ? error.message : "No pudimos iniciar sesión. Revisa tu conexión e intenta de nuevo.");
@@ -43,7 +43,7 @@ const LoginPage = () => {
         <h1 className="t-h1">Iniciar sesión</h1>
         <p className="t-muted" style={{ margin: "6px 0 0" }}>Usa tu cuenta institucional de la UNAM.</p>
       </div>
-      <Alert tipo="info">Solo se aceptan correos @acatlan.unam.mx o @unam.mx.</Alert>
+      <Alert tipo="info">Solo se aceptan correos @acatlan.unam.mx o @pcpuma.acatlan.unam.mx.</Alert>
       {errorGeneral && <Alert tipo="error">{errorGeneral}</Alert>}
       <form className="stack" style={{ gap: 20 }} onSubmit={iniciarSesion} noValidate>
         <TextField label="Correo institucional" icon="correo" type="email" autoComplete="username" placeholder="nombre@acatlan.unam.mx" value={correo} onChange={(e) => setCorreo(e.target.value)} error={errorCorreo} required />
@@ -55,7 +55,9 @@ const LoginPage = () => {
         </div>
         <Button type="submit" icon="salir" block disabled={enviando}>{enviando ? "Entrando…" : "Iniciar sesión"}</Button>
       </form>
-      <p className="t-small t-muted" style={{ margin: 0 }}>Modo demostración: usa maria.gonzalez@acatlan.unam.mx para entrar como Administradora o cualquier otro correo institucional para entrar como Capturista.</p>
+      {usaMocks() && (
+        <p className="t-small t-muted" style={{ margin: 0 }}>Modo demostración: usa maria.gonzalez@acatlan.unam.mx para entrar como Administradora o cualquier otro correo institucional para entrar como Captura.</p>
+      )}
       <PublicFooter />
     </SplitLayout>
   );

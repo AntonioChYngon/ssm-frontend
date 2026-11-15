@@ -28,7 +28,7 @@ const UsuariosPage = () => {
   const guardar = (event: FormEvent) => {
     event.preventDefault();
     if (!esCorreoInstitucional(correo)) {
-      setErrorCorreo("Usa un correo @acatlan.unam.mx o @unam.mx. No se aceptan correos personales.");
+      setErrorCorreo("Usa un correo @acatlan.unam.mx o @pcpuma.acatlan.unam.mx. No se aceptan correos personales.");
       return;
     }
     setErrorCorreo(undefined);
@@ -45,7 +45,7 @@ const UsuariosPage = () => {
       />
       <div className="row row--end row--responsive">
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Nombre o correo institucional" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
-        <div style={{ width: 220 }}><SelectField label="Rol" options={["Todos los roles", "Administrador", "Capturista", "Auxiliar"]} /></div>
+        <div style={{ width: 220 }}><SelectField label="Rol" options={["Todos los roles", "Administrador", "Captura", "Auxiliar"]} /></div>
         <div style={{ width: 260 }}><SelectField label="Licenciatura" options={["Todas", ...LICENCIATURAS]} /></div>
       </div>
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
@@ -85,7 +85,7 @@ const UsuariosPage = () => {
             <form className="stack" style={{ gap: 18 }} onSubmit={guardar} noValidate>
               <TextField label="Nombre completo *" placeholder="Ej. Rosa María Cruz López" required />
               <TextField label="Correo institucional *" icon="correo" type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} error={errorCorreo} required />
-              <SelectField label="Rol *" options={["Capturista", "Auxiliar", "Administrador"]} />
+              <SelectField label="Rol *" options={["Captura", "Auxiliar", "Administrador"]} />
               <SelectField label="Licenciatura asignada *" options={LICENCIATURAS} />
               {guardado ? <Alert tipo="exito">Usuario creado. Enviamos una contraseña temporal a su correo.</Alert> : <Alert tipo="info">Se enviará una contraseña temporal por correo. Deberá cambiarla en su primer acceso.</Alert>}
               <div className="row" style={{ gap: 12 }}>

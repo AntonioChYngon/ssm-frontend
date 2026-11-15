@@ -19,7 +19,7 @@ const BitacoraPage = () => {
       />
       <div className="row row--end row--responsive">
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Usuario, documento o acción" /></div>
-        <div style={{ width: 180 }}><SelectField label="Rol" options={["Todos", "Administrador", "Capturista", "Auxiliar"]} /></div>
+        <div style={{ width: 180 }}><SelectField label="Rol" options={["Todos", "Administrador", "Captura", "Auxiliar"]} /></div>
         <div style={{ width: 200 }}><SelectField label="Tipo de acción" options={["Todas", "Validación", "Devolución", "Captura", "Evidencias", "Usuarios"]} /></div>
         <div style={{ width: 280 }}><TextField label="Periodo" icon="calendario" defaultValue="01/11/2026 – 11/11/2026" /></div>
       </div>

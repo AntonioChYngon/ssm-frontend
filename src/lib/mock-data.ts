@@ -40,10 +40,10 @@ export const CATEGORIAS = [
 
 export const USUARIOS: Usuario[] = [
   { id: "u1", nombre: "María González", correo: "maria.gonzalez@acatlan.unam.mx", rol: "ADMINISTRADOR", licenciatura: null, activo: true, ultimoAcceso: "Hoy 09:05" },
-  { id: "u2", nombre: "Jorge Ramírez", correo: "jorge.ramirez@acatlan.unam.mx", rol: "CAPTURISTA", licenciatura: "Actuaría", activo: true, ultimoAcceso: "Hoy 08:40" },
+  { id: "u2", nombre: "Jorge Ramírez", correo: "jorge.ramirez@acatlan.unam.mx", rol: "CAPTURA", licenciatura: "Actuaría", activo: true, ultimoAcceso: "Hoy 08:40" },
   { id: "u3", nombre: "Ana Torres", correo: "ana.torres@acatlan.unam.mx", rol: "AUXILIAR", licenciatura: "Actuaría", activo: true, ultimoAcceso: "Ayer 18:22" },
-  { id: "u4", nombre: "Laura Méndez", correo: "laura.mendez@acatlan.unam.mx", rol: "CAPTURISTA", licenciatura: "Derecho", activo: true, ultimoAcceso: "Ayer 13:10" },
-  { id: "u5", nombre: "Pablo Sánchez", correo: "pablo.sanchez@acatlan.unam.mx", rol: "CAPTURISTA", licenciatura: "Economía", activo: true, ultimoAcceso: "08/11/2026" },
+  { id: "u4", nombre: "Laura Méndez", correo: "laura.mendez@acatlan.unam.mx", rol: "CAPTURA", licenciatura: "Derecho", activo: true, ultimoAcceso: "Ayer 13:10" },
+  { id: "u5", nombre: "Pablo Sánchez", correo: "pablo.sanchez@acatlan.unam.mx", rol: "CAPTURA", licenciatura: "Economía", activo: true, ultimoAcceso: "08/11/2026" },
   { id: "u6", nombre: "Rosa Cruz", correo: "rosa.cruz@acatlan.unam.mx", rol: "AUXILIAR", licenciatura: "Arquitectura", activo: false, ultimoAcceso: "14/09/2026" },
 ];
 

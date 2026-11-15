@@ -1,7 +1,7 @@
 // Contrato de datos compartido con ssm-backend (mismos nombres que los DTO de NestJS).
 // Si cambias algo aquí, actualiza también ssm-backend/src/common/enums.ts y los DTO.
 
-export type Rol = "ADMINISTRADOR" | "CAPTURISTA" | "AUXILIAR";
+export type Rol = "ADMINISTRADOR" | "CAPTURA" | "AUXILIAR";
 export type EstadoDocumento = "BORRADOR" | "EN_REVISION" | "DEVUELTO" | "VALIDADO";
 export type EstadoEvidencia = "SUBIENDO" | "CONVIRTIENDO" | "LISTO" | "ERROR";
 export type TipoNotificacion = "VENCIMIENTO" | "HITO" | "DEVOLUCION";
@@ -18,7 +18,7 @@ export const ESTADO_DOCUMENTO_BADGE: Record<EstadoDocumento, EstadoBadge> = {
 
 export const ROL_LABEL: Record<Rol, string> = {
   ADMINISTRADOR: "Administrador",
-  CAPTURISTA: "Capturista",
+  CAPTURA: "Captura",
   AUXILIAR: "Auxiliar",
 };
 
@@ -28,8 +28,11 @@ export type Usuario = {
   correo: string;
   rol: Rol;
   licenciatura: string | null;
+  /** Coordinación asignada (null para el Administrador). */
+  coordinacion?: string | null;
   activo: boolean;
-  ultimoAcceso: string;
+  /** Solo en el listado de usuarios del Administrador. */
+  ultimoAcceso?: string;
 };
 
 export type PlanResumen = {
