@@ -1,7 +1,20 @@
 // Cliente del API de ssm-backend. Mientras NEXT_PUBLIC_USE_MOCKS=true responde con datos de ejemplo,
 // así el front se puede desarrollar sin backend. Cada función documenta el endpoint que consumirá.
 import * as mock from "./mock-data";
-import type { Hito, InformeResumen, Notificacion, PlanResumen, Rol, Sesion, Usuario } from "./types";
+import type {
+  AtencionLicenciatura,
+  CambiarAsignacionPayload,
+  Catalogos,
+  CrearUsuarioPayload,
+  Hito,
+  InformeResumen,
+  NuevaRecomendacionPayload,
+  Notificacion,
+  PlanResumen,
+  Rol,
+  Sesion,
+  Usuario,
+} from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
 const USE_MOCKS = (process.env.NEXT_PUBLIC_USE_MOCKS ?? "true") === "true";
@@ -118,4 +131,60 @@ export const subirEvidencia = async (hitoId: string, archivo: File): Promise<voi
   const token = window.sessionStorage.getItem(CLAVE_TOKEN);
   const response = await fetch(`${API_URL}/evidencias`, { method: "POST", body, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
   if (!response.ok) throw new ApiError(response.status, "No se pudo subir el archivo.");
+};
+
+// ---------------------------------------------------------------------------
+// Historias en curso. Con NEXT_PUBLIC_USE_MOCKS=true responden con datos de ejemplo.
+// ---------------------------------------------------------------------------
+
+const esperar = (ms = 300) => new Promise((resolver) => setTimeout(resolver, ms));
+
+/** HU-02 · POST /auth/restablecer (enlace del correo de recuperación) */
+export const restablecerContrasena = async (token: string, nueva: string): Promise<void> => {
+  if (!USE_MOCKS) await request("/auth/restablecer", { method: "POST", body: JSON.stringify({ token, nueva }) });
+};
+
+/** HU-02 · POST /usuarios */
+export const crearUsuario = async (datos: CrearUsuarioPayload): Promise<Usuario> => {
+  if (!USE_MOCKS) return request<Usuario>("/usuarios", { method: "POST", body: JSON.stringify(datos) });
+  await esperar();
+  return { id: `mock-${Date.now()}`, nombre: `${datos.nombre} ${datos.apellido}`, correo: datos.correo, rol: datos.rol, licenciatura: "Actuaría", activo: true };
+};
+
+/** HU-02 · PATCH /usuarios/:id/asignacion */
+export const cambiarAsignacion = async (id: string, datos: CambiarAsignacionPayload): Promise<void> => {
+  if (!USE_MOCKS) await request(`/usuarios/${id}/asignacion`, { method: "PATCH", body: JSON.stringify(datos) });
+};
+
+/** HU-02 · POST /usuarios/:id/restablecer */
+export const restablecerContrasenaDeUsuario = async (id: string): Promise<void> => {
+  if (!USE_MOCKS) await request(`/usuarios/${id}/restablecer`, { method: "POST" });
+};
+
+/** HU-02 · PATCH /usuarios/:id/estado */
+export const cambiarEstadoUsuario = async (id: string, activo: boolean, motivo?: string): Promise<void> => {
+  if (!USE_MOCKS) await request(`/usuarios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo, motivo }) });
+};
+
+/** HU-04 · GET /catalogos */
+export const obtenerCatalogos = async (): Promise<Catalogos> => {
+  if (!USE_MOCKS) return request<Catalogos>("/catalogos");
+  const lista = (nombres: readonly string[]) => nombres.map((nombre, i) => ({ id: String(i + 1), nombre }));
+  return {
+    categorias: lista(mock.CATEGORIAS),
+    areas: lista(["Secretaría Académica", "Secretaría General", "Biblioteca", "Centro de Cómputo"]),
+    organismos: lista(["Organismo Acreditador de Prueba A", "Organismo Acreditador de Prueba B"]),
+  };
+};
+
+/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones */
+export const agregarRecomendacion = async (cicloId: string, datos: NuevaRecomendacionPayload): Promise<void> => {
+  if (!USE_MOCKS) await request(`/ciclos/${cicloId}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
+  else await esperar();
+};
+
+/** HU-15 · GET /reportes/atencion?licenciaturaId= */
+export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<AtencionLicenciatura[]> => {
+  if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaId ? `?licenciaturaId=${encodeURIComponent(licenciaturaId)}` : ""}`);
+  return mock.ATENCION;
 };

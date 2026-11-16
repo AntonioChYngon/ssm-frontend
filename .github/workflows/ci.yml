@@ -1,0 +1,25 @@
+# Se ejecuta en cada Pull Request y en cada push a main: revisa tipos y que el sitio compile.
+# Compila en modo demostración, así no necesita el backend.
+name: CI frontend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_USE_MOCKS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Revisar tipos
+        run: npm run typecheck
+      - name: Compilar
+        run: npm run build

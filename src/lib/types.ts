@@ -138,3 +138,41 @@ export type AtencionLicenciatura = { licenciatura: string; atendidas: number; en
 export type AvanceLicenciatura = { licenciatura: string; real: number; esperado: number };
 
 export type Sesion = { usuario: Usuario; token: string };
+
+// ---------------------------------------------------------------------------
+// Contratos de las historias en curso. Deben coincidir con los DTO del backend:
+// ssm-backend/src/modules/{usuarios,planes,reportes}/*.module.ts
+// Si cambias uno, cambia el otro en el mismo PR y avisa al equipo.
+// ---------------------------------------------------------------------------
+
+/** HU-02 · POST /usuarios */
+export type CrearUsuarioPayload = {
+  nombre: string;
+  apellido: string;
+  correo: string;
+  rol: Exclude<Rol, "ADMINISTRADOR">;
+  coordinacionId: string;
+};
+
+/** HU-02 · PATCH /usuarios/:id/asignacion */
+export type CambiarAsignacionPayload = { rol: Exclude<Rol, "ADMINISTRADOR">; coordinacionId: string };
+
+/** HU-04 · GET /catalogos */
+export type ItemCatalogo = { id: string; nombre: string };
+export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
+
+/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones (indicadorId o indicador nuevo) */
+export type NuevaRecomendacionPayload = {
+  categoriaId: string;
+  indicadorId?: string;
+  indicador?: string;
+  descripcion: string;
+  acciones: string[];
+  metas: string[];
+  areaIds: string[];
+  /** AAAA-MM-DD, dentro de la vigencia del ciclo */
+  fechaCumplimiento: string;
+  etiquetaFecha?: string;
+};
+
+// HU-15 · GET /reportes/atencion?licenciaturaId= → AtencionLicenciatura[] (definido arriba)

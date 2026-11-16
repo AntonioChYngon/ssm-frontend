@@ -6,6 +6,8 @@ Frontend del **Sistema de Seguimiento de Mejora (SSM)** de la FES Acatlán, UNAM
 - **Backend:** [`ssm-backend`](https://github.com/AntonioChYngon/ssm-backend). Está hecho con NestJS, TypeORM y MariaDB.
 - **Diseño:** https://www.figma.com/design/yjeMb9h1VCWejHPEk4RYqK
 
+> **Equipo:** la guía de trabajo (reparto de historias, ramas, pruebas y CI) está en [`ssm-backend/CONTRIBUTING.md`](https://github.com/AntonioChYngon/ssm-backend/blob/main/CONTRIBUTING.md). Los contratos de cada historia están al final de `src/lib/types.ts` y `src/lib/api.ts`.
+
 ## Arranque
 
 ```bash
