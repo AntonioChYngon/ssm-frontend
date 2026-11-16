@@ -161,7 +161,50 @@ export type CambiarAsignacionPayload = { rol: Exclude<Rol, "ADMINISTRADOR">; coo
 export type ItemCatalogo = { id: string; nombre: string };
 export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
 
-/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones (indicadorId o indicador nuevo) */
+/** Estados de version_plan en el backend (CHECK ck_plan_estado). */
+export type EstadoVersionPlan = "BORRADOR" | "EN_REVISION" | "APROBADO" | "DEVUELTO";
+
+export const ESTADO_VERSION_BADGE: Record<EstadoVersionPlan, EstadoBadge> = {
+  BORRADOR: "Borrador",
+  EN_REVISION: "En revisión",
+  APROBADO: "Validado",
+  DEVUELTO: "Devuelto",
+};
+
+/** Una recomendación con todo lo que muestra la tabla "Plan de Mejora Continua" (Anexo 1). */
+export type RecomendacionPlan = {
+  id: string;
+  descripcion: string;
+  acciones: string[];
+  /** Cada meta expresa su objetivo en porcentaje (decisión D2). */
+  metas: string[];
+  areas: ItemCatalogo[];
+  /** AAAA-MM-DD */
+  fechaCumplimiento: string;
+  etiquetaFecha: string | null;
+};
+
+export type IndicadorPlan = {
+  id: string;
+  clave: string | null;
+  descripcion: string;
+  categoria: ItemCatalogo;
+  recomendaciones: RecomendacionPlan[];
+};
+
+/** HU-04 · GET /mi-plan y GET /ciclos/:cicloId/plan. `version` es null si el ciclo aún no tiene plan. */
+export type PlanDeMejora = {
+  cicloId: string;
+  licenciatura: string;
+  organismo: string;
+  /** AAAA-MM-DD: la fecha de cumplimiento debe quedar dentro de este rango. */
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  version: { id: string; numero: number; estado: EstadoVersionPlan; editable: boolean } | null;
+  indicadores: IndicadorPlan[];
+};
+
+/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones (indicadorId o indicador nuevo) → RecomendacionPlan */
 export type NuevaRecomendacionPayload = {
   categoriaId: string;
   indicadorId?: string;

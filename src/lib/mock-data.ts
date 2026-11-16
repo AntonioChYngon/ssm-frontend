@@ -1,18 +1,5 @@
 // Datos de ejemplo (los mismos de las pantallas de Figma). Se usan mientras NEXT_PUBLIC_USE_MOCKS=true.
-import type {
-  AtencionLicenciatura,
-  AvanceLicenciatura,
-  Devolucion,
-  Evidencia,
-  EventoBitacora,
-  Hito,
-  Incumplimiento,
-  InformeResumen,
-  Notificacion,
-  PlanResumen,
-  Recomendacion,
-  Usuario,
-} from "./types";
+import type { AtencionLicenciatura, AvanceLicenciatura, Devolucion, EventoBitacora, Evidencia, Hito, Incumplimiento, InformeResumen, Notificacion, PlanDeMejora, PlanResumen, Recomendacion, Usuario } from "./types";
 
 export const LICENCIATURAS = [
   "Actuaría",
@@ -213,3 +200,49 @@ export const ETIQUETAS = [
   { nombre: "Gestión administrativa", total: 5 },
   { nombre: "Sin etiqueta", total: 34 },
 ];
+
+// HU-04 · Plan de Actuaría en BORRADOR (mismos ids que los catálogos de ejemplo de obtenerCatalogos()).
+export const PLAN_MIO: PlanDeMejora = {
+  cicloId: "1",
+  licenciatura: "Actuaría",
+  organismo: "Organismo Acreditador de Prueba A",
+  vigenciaInicio: "2024-11-28",
+  vigenciaFin: "2029-11-28",
+  version: { id: "1", numero: 1, estado: "BORRADOR", editable: true },
+  indicadores: [
+    {
+      id: "1",
+      clave: "1.1",
+      descripcion: "Formación y actualización del personal académico",
+      categoria: { id: "1", nombre: "Personal académico" },
+      recomendaciones: [
+        {
+          id: "1",
+          descripcion: "Implementar un programa anual de actualización disciplinar para profesores de asignatura",
+          acciones: ["Diseñar el programa con el Comité de Carrera", "Impartir dos cursos por semestre"],
+          metas: ["Capacitar al 80% de los profesores de asignatura"],
+          areas: [{ id: "1", nombre: "Secretaría Académica" }],
+          fechaCumplimiento: "2027-06-30",
+          etiquetaFecha: "Semestre 2027-2",
+        },
+      ],
+    },
+    {
+      id: "2",
+      clave: "9.2",
+      descripcion: "Condiciones de laboratorios de cómputo",
+      categoria: { id: "9", nombre: "Infraestructura" },
+      recomendaciones: [
+        {
+          id: "2",
+          descripcion: "Renovar el equipo de cómputo de los laboratorios de modelación",
+          acciones: ["Levantar inventario", "Gestionar la compra"],
+          metas: ["Renovar el 100% de los equipos con más de 6 años"],
+          areas: [{ id: "4", nombre: "Centro de Cómputo" }],
+          fechaCumplimiento: "2028-06-30",
+          etiquetaFecha: "Semestre 2028-2",
+        },
+      ],
+    },
+  ],
+};

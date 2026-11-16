@@ -10,7 +10,9 @@ import type {
   InformeResumen,
   NuevaRecomendacionPayload,
   Notificacion,
+  PlanDeMejora,
   PlanResumen,
+  RecomendacionPlan,
   Rol,
   Sesion,
   Usuario,
@@ -166,21 +168,63 @@ export const cambiarEstadoUsuario = async (id: string, activo: boolean, motivo?:
   if (!USE_MOCKS) await request(`/usuarios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo, motivo }) });
 };
 
+const AREAS_EJEMPLO = ["Secretaría Académica", "Secretaría General", "Biblioteca", "Centro de Cómputo"] as const;
+
 /** HU-04 · GET /catalogos */
 export const obtenerCatalogos = async (): Promise<Catalogos> => {
   if (!USE_MOCKS) return request<Catalogos>("/catalogos");
   const lista = (nombres: readonly string[]) => nombres.map((nombre, i) => ({ id: String(i + 1), nombre }));
   return {
     categorias: lista(mock.CATEGORIAS),
-    areas: lista(["Secretaría Académica", "Secretaría General", "Biblioteca", "Centro de Cómputo"]),
+    areas: lista(AREAS_EJEMPLO),
     organismos: lista(["Organismo Acreditador de Prueba A", "Organismo Acreditador de Prueba B"]),
   };
 };
 
-/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones */
-export const agregarRecomendacion = async (cicloId: string, datos: NuevaRecomendacionPayload): Promise<void> => {
-  if (!USE_MOCKS) await request(`/ciclos/${cicloId}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
-  else await esperar();
+/** HU-04 · GET /mi-plan: plan del ciclo vigente de la licenciatura de Captura/Auxiliar (incluye su cicloId). */
+export const obtenerMiPlan = async (): Promise<PlanDeMejora> => {
+  if (!USE_MOCKS) return request<PlanDeMejora>("/mi-plan");
+  await esperar();
+  return structuredClone(mockPlan);
+};
+
+/** HU-04 · GET /ciclos/:cicloId/plan (el Administrador consulta cualquier ciclo). */
+export const obtenerPlanDelCiclo = async (cicloId: string): Promise<PlanDeMejora> => {
+  if (!USE_MOCKS) return request<PlanDeMejora>(`/ciclos/${encodeURIComponent(cicloId)}/plan`);
+  await esperar();
+  return structuredClone(mockPlan);
+};
+
+/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones → la recomendación guardada. */
+export const agregarRecomendacion = async (cicloId: string, datos: NuevaRecomendacionPayload): Promise<RecomendacionPlan> => {
+  if (!USE_MOCKS) {
+    return request<RecomendacionPlan>(`/ciclos/${encodeURIComponent(cicloId)}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
+  }
+  await esperar();
+  return agregarAlPlanDeEjemplo(datos);
+};
+
+// Con mocks, las capturas se guardan en memoria para que la tabla del Anexo 1 se actualice.
+const mockPlan: PlanDeMejora = structuredClone(mock.PLAN_MIO);
+
+const agregarAlPlanDeEjemplo = (datos: NuevaRecomendacionPayload): RecomendacionPlan => {
+  const nombreCategoria = mock.CATEGORIAS[Number(datos.categoriaId) - 1] ?? "Sin categoría";
+  let indicador = mockPlan.indicadores.find((i) => i.id === datos.indicadorId);
+  if (!indicador) {
+    indicador = { id: `mock-${Date.now()}`, clave: null, descripcion: datos.indicador ?? "", categoria: { id: datos.categoriaId, nombre: nombreCategoria }, recomendaciones: [] };
+    mockPlan.indicadores.push(indicador);
+  }
+  const recomendacion: RecomendacionPlan = {
+    id: `mock-${Date.now()}-r`,
+    descripcion: datos.descripcion,
+    acciones: datos.acciones,
+    metas: datos.metas,
+    areas: datos.areaIds.map((id) => ({ id, nombre: AREAS_EJEMPLO[Number(id) - 1] ?? id })),
+    fechaCumplimiento: datos.fechaCumplimiento,
+    etiquetaFecha: datos.etiquetaFecha ?? null,
+  };
+  indicador.recomendaciones.push(recomendacion);
+  return recomendacion;
 };
 
 /** HU-15 · GET /reportes/atencion?licenciaturaId= */
