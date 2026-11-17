@@ -18,7 +18,7 @@ npm run typecheck
 npm run build
 ```
 
-Mientras `NEXT_PUBLIC_USE_MOCKS=true`, la app usa los datos de `src/lib/mock-data.ts` y funciona sin backend.
+Con `NEXT_PUBLIC_USE_MOCKS=true` la app funciona sin backend en **modo demostración**: arranca en ceros (solo catálogos y las cuentas del seed) y guarda lo que captures en el navegador (`src/lib/demo.ts`).
 
 Para entrar en modo demostración:
 - Con `maria.gonzalez@acatlan.unam.mx` entras como **Administradora**.
@@ -41,7 +41,8 @@ src/
   lib/
     types.ts            contrato de datos compartido con ssm-backend
     api.ts              cliente HTTP; cada función indica su endpoint
-    mock-data.ts        datos de ejemplo de Figma
+    catalogos.ts        copia de los catálogos oficiales del backend (solo modo demostración)
+    demo.ts             almacén del modo demostración (arranca vacío, usa localStorage)
     nav.ts              menú por rol (Administrador / Capturista / Auxiliar)
 ```
 
@@ -75,7 +76,7 @@ src/
 
 1. Levanta `ssm-backend`. Por defecto escucha en `http://localhost:3001/api`.
 2. En `.env.local`, pon `NEXT_PUBLIC_USE_MOCKS=false`.
-3. Las funciones de `src/lib/api.ts` ya apuntan a los endpoints del backend. Pendiente: reemplazar en cada página la lectura directa de `mock-data` por la función de `api.ts` correspondiente.
+3. Las funciones de `src/lib/api.ts` ya apuntan a los endpoints del backend. Las vistas cuyo endpoint aún no existe muestran un estado vacío con un `TODO(HU-xx)`.
 4. El perfil del header (`AppShell`) todavía es fijo por sección. Debe leerse de `GET /auth/me`.
 
 ## Reglas de UI

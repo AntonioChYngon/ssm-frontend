@@ -56,7 +56,7 @@ const LoginPage = () => {
         <Button type="submit" icon="salir" block disabled={enviando}>{enviando ? "Entrando…" : "Iniciar sesión"}</Button>
       </form>
       {usaMocks() && (
-        <p className="t-small t-muted" style={{ margin: 0 }}>Modo demostración: usa maria.gonzalez@acatlan.unam.mx para entrar como Administradora o cualquier otro correo institucional para entrar como Captura.</p>
+        <p className="t-small t-muted" style={{ margin: 0 }}>Modo demostración (arranca en ceros): usa admin.ssm@acatlan.unam.mx para entrar como Administradora; cualquier otro correo institucional entra como Captura de Actuaría.</p>
       )}
       <PublicFooter />
     </SplitLayout>

@@ -1,20 +1,35 @@
-import type { Metadata } from "next";
-import { Button } from "@/components/ui/Button";
-import { BarraApilada, Donut, Legend } from "@/components/ui/Charts";
-import { Card, KpiCard, PageTitle } from "@/components/ui/Display";
-import { SelectField } from "@/components/ui/Field";
-import { ATENCION, LICENCIATURAS } from "@/lib/mock-data";
+"use client";
 
-export const metadata: Metadata = { title: "Resumen de atención" };
+// Resumen de atención (HU-15): GET /reportes/atencion. Cuenta el avance del último informe capturado (D3).
+import { useEffect, useState } from "react";
+import { BarraApilada, Donut, Legend } from "@/components/ui/Charts";
+import { Card, EmptyState, KpiCard, PageTitle } from "@/components/ui/Display";
+import { SelectField } from "@/components/ui/Field";
+import { obtenerCatalogos, obtenerResumenAtencion } from "@/lib/api";
+import type { AtencionLicenciatura, ItemCatalogo } from "@/lib/types";
 
 const VERDE = "var(--color-success)";
 const NARANJA = "var(--color-warning)";
 const ROJO = "var(--color-danger)";
+const TODAS = "Todas";
 
 const AtencionPage = () => {
-  const totales = ATENCION.reduce((t, a) => ({ atendidas: t.atendidas + a.atendidas, enProceso: t.enProceso + a.enProceso, sinAtender: t.sinAtender + a.sinAtender }), { atendidas: 0, enProceso: 0, sinAtender: 0 });
+  const [licenciaturas, setLicenciaturas] = useState<ItemCatalogo[]>([]);
+  const [licenciatura, setLicenciatura] = useState(TODAS);
+  const [filas, setFilas] = useState<AtencionLicenciatura[]>([]);
+
+  useEffect(() => {
+    obtenerCatalogos().then((c) => setLicenciaturas(c.licenciaturas)).catch(() => setLicenciaturas([]));
+  }, []);
+
+  useEffect(() => {
+    const id = licenciaturas.find((l) => l.nombre === licenciatura)?.id;
+    obtenerResumenAtencion(id).then(setFilas).catch(() => setFilas([]));
+  }, [licenciatura, licenciaturas]);
+
+  const totales = filas.reduce((t, a) => ({ atendidas: t.atendidas + a.atendidas, enProceso: t.enProceso + a.enProceso, sinAtender: t.sinAtender + a.sinAtender }), { atendidas: 0, enProceso: 0, sinAtender: 0 });
   const total = totales.atendidas + totales.enProceso + totales.sinAtender;
-  const pct = (n: number) => `${Math.round((n / total) * 100)}% de ${total} recomendaciones`;
+  const pct = (n: number) => (total ? `${Math.round((n / total) * 100)}% de ${total} recomendaciones` : "sin recomendaciones evaluadas");
 
   return (
     <>
@@ -22,11 +37,7 @@ const AtencionPage = () => {
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Reportes" }, { label: "Resumen de atención" }]}
         title="Resumen de atención"
         subtitle="Cuántas recomendaciones están atendidas por completo, en proceso o sin atender."
-        actions={<>
-          <div style={{ width: 240 }}><SelectField label="Licenciatura" options={["Todas", ...LICENCIATURAS]} /></div>
-          <div style={{ width: 200 }}><SelectField label="Ciclo" options={["2024 – 2029", "2019 – 2024"]} /></div>
-          <Button variant="contorno" icon="descargar">Exportar</Button>
-        </>}
+        actions={<div style={{ width: 280 }}><SelectField label="Licenciatura" options={[TODAS, ...licenciaturas.map((l) => l.nombre)]} value={licenciatura} onChange={(e) => setLicenciatura(e.target.value)} /></div>}
       />
       <div className="grid-3">
         <KpiCard tono="verde" titulo="Atendidas (100%)" valor={String(totales.atendidas)} detalle={pct(totales.atendidas)} icon="check" />
@@ -45,7 +56,9 @@ const AtencionPage = () => {
           <Legend color={ROJO} label="0% sin atender" />
         </Card>
         <Card title="Por licenciatura" className="grow" actions={<div className="row" style={{ gap: 16 }}><Legend color={VERDE} label="100%" /><Legend color={NARANJA} label="1–99%" /><Legend color={ROJO} label="0%" /></div>}>
-          {ATENCION.map((a) => (
+          {filas.length === 0 ? (
+            <EmptyState icon="pastel" titulo="Sin datos de atención" mensaje="El resumen se calcula con el último informe de seguimiento capturado de cada licenciatura." />
+          ) : filas.map((a) => (
             <div key={a.licenciatura} className="row" style={{ gap: 16 }}>
               <span style={{ width: 240, flex: "0 0 240px" }}>{a.licenciatura}</span>
               <BarraApilada partes={[{ label: "100%", valor: a.atendidas, color: VERDE }, { label: "1–99%", valor: a.enProceso, color: NARANJA }, { label: "0%", valor: a.sinAtender, color: ROJO }]} />

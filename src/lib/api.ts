@@ -1,17 +1,20 @@
-// Cliente del API de ssm-backend. Mientras NEXT_PUBLIC_USE_MOCKS=true responde con datos de ejemplo,
-// así el front se puede desarrollar sin backend. Cada función documenta el endpoint que consumirá.
-import * as mock from "./mock-data";
+// Cliente del API de ssm-backend. Con NEXT_PUBLIC_USE_MOCKS=true funciona en modo demostración: arranca en ceros
+// (solo catálogos y las cuentas del seed) y guarda lo capturado en el navegador. Ver src/lib/demo.ts.
+// Cada función documenta el endpoint que consume.
+import { CAPTURA_DEMO, CATALOGOS_DEMO, USUARIOS_DEMO, guardarDemo, leerDemo, planVacio, siguienteIdDemo } from "./demo";
+import { errorMetaMedible, errorVigencia } from "./reglas";
 import type {
   AtencionLicenciatura,
   CambiarAsignacionPayload,
   Catalogos,
+  CicloPayload,
+  CicloResumen,
   CrearUsuarioPayload,
   Hito,
   InformeResumen,
   NuevaRecomendacionPayload,
   Notificacion,
   PlanDeMejora,
-  PlanResumen,
   RecomendacionPlan,
   Rol,
   Sesion,
@@ -87,12 +90,12 @@ export const login = async (correo: string, contrasena: string): Promise<Sesion>
     throw new ApiError(400, MENSAJE_DOMINIO);
   }
   if (!USE_MOCKS) return request<Sesion>("/auth/login", { method: "POST", body: JSON.stringify({ correo, contrasena }) });
-  const usuario = mock.USUARIOS.find((u) => u.correo === correo.trim().toLowerCase()) ?? mock.USUARIOS[1];
-  return { usuario, token: "mock-token" };
+  const usuario = USUARIOS_DEMO.find((u) => u.correo === correo.trim().toLowerCase()) ?? CAPTURA_DEMO;
+  return { usuario, token: "demo-token" };
 };
 
 /** GET /auth/me: confirma que el token sigue vigente y devuelve el usuario actualizado. */
-export const obtenerUsuarioActual = async (): Promise<Usuario> => (USE_MOCKS ? (leerUsuarioSesion() ?? mock.USUARIOS[1]) : request<Usuario>("/auth/me"));
+export const obtenerUsuarioActual = async (): Promise<Usuario> => (USE_MOCKS ? (leerUsuarioSesion() ?? CAPTURA_DEMO) : request<Usuario>("/auth/me"));
 
 /** POST /auth/recuperar */
 export const solicitarRecuperacion = async (correo: string): Promise<void> => {
@@ -102,27 +105,27 @@ export const solicitarRecuperacion = async (correo: string): Promise<void> => {
 
 export const rutaInicio = (rol: Rol) => (rol === "ADMINISTRADOR" ? "/admin/dashboard" : "/licenciatura/dashboard");
 
-/** GET /usuarios */
-export const listarUsuarios = async (): Promise<Usuario[]> => (USE_MOCKS ? mock.USUARIOS : request<Usuario[]>("/usuarios"));
-
-/** GET /planes */
-export const listarPlanes = async (): Promise<PlanResumen[]> => (USE_MOCKS ? mock.PLANES : request<PlanResumen[]>("/planes"));
+/** GET /usuarios: usuarios registrados en la base (en demostración, las dos cuentas del seed). */
+export const listarUsuarios = async (): Promise<Usuario[]> => (USE_MOCKS ? USUARIOS_DEMO : request<Usuario[]>("/usuarios"));
 
 /** POST /planes/:id/validar  ·  POST /planes/:id/devolver */
 export const resolverPlan = async (id: string, accion: "validar" | "devolver", motivo?: string): Promise<void> => {
   if (!USE_MOCKS) await request(`/planes/${id}/${accion}`, { method: "POST", body: JSON.stringify({ motivo }) });
 };
 
-/** GET /informes */
-export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? mock.INFORMES : request<InformeResumen[]>("/informes"));
+/** GET /informes (HU-07, pendiente en el backend): sin backend, la lista empieza vacía. */
+export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? [] : request<InformeResumen[]>("/informes"));
 
 /** PUT /recomendaciones/:id/hitos */
 export const guardarHitos = async (recomendacionId: string, hitos: Omit<Hito, "id" | "recomendacionId" | "porcentajeReal">[]): Promise<void> => {
   if (!USE_MOCKS) await request(`/recomendaciones/${recomendacionId}/hitos`, { method: "PUT", body: JSON.stringify(hitos) });
 };
 
-/** GET /notificaciones */
-export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MOCKS ? mock.NOTIFICACIONES : request<Notificacion[]>("/notificaciones"));
+/** GET /notificaciones (HU-10, pendiente en el backend). Mientras no exista, la bandeja queda vacía. */
+export const listarNotificaciones = async (): Promise<Notificacion[]> => {
+  if (USE_MOCKS) return [];
+  return request<Notificacion[]>("/notificaciones").catch(() => []);
+};
 
 /** POST /evidencias (multipart). El backend convierte a PDF y devuelve el estado. */
 export const subirEvidencia = async (hitoId: string, archivo: File): Promise<void> => {
@@ -150,7 +153,7 @@ export const restablecerContrasena = async (token: string, nueva: string): Promi
 export const crearUsuario = async (datos: CrearUsuarioPayload): Promise<Usuario> => {
   if (!USE_MOCKS) return request<Usuario>("/usuarios", { method: "POST", body: JSON.stringify(datos) });
   await esperar();
-  return { id: `mock-${Date.now()}`, nombre: `${datos.nombre} ${datos.apellido}`, correo: datos.correo, rol: datos.rol, licenciatura: "Actuaría", activo: true };
+  return { id: `demo-${Date.now()}`, nombre: `${datos.nombre} ${datos.apellido}`, correo: datos.correo, rol: datos.rol, licenciatura: null, activo: true };
 };
 
 /** HU-02 · PATCH /usuarios/:id/asignacion */
@@ -168,31 +171,67 @@ export const cambiarEstadoUsuario = async (id: string, activo: boolean, motivo?:
   if (!USE_MOCKS) await request(`/usuarios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo, motivo }) });
 };
 
-const AREAS_EJEMPLO = ["Secretaría Académica", "Secretaría General", "Biblioteca", "Centro de Cómputo"] as const;
-
 /** HU-04 · GET /catalogos */
-export const obtenerCatalogos = async (): Promise<Catalogos> => {
-  if (!USE_MOCKS) return request<Catalogos>("/catalogos");
-  const lista = (nombres: readonly string[]) => nombres.map((nombre, i) => ({ id: String(i + 1), nombre }));
-  return {
-    categorias: lista(mock.CATEGORIAS),
-    areas: lista(AREAS_EJEMPLO),
-    organismos: lista(["Organismo Acreditador de Prueba A", "Organismo Acreditador de Prueba B"]),
-  };
+export const obtenerCatalogos = async (): Promise<Catalogos> => (USE_MOCKS ? CATALOGOS_DEMO : request<Catalogos>("/catalogos"));
+
+const SIN_CICLO = "La Unidad de Planeación aún no registra el ciclo de acreditación (vigencia) de tu licenciatura.";
+
+/** HU-04 · GET /ciclos (Administradora): ciclos de acreditación con el estado de su plan. */
+export const listarCiclos = async (): Promise<CicloResumen[]> => {
+  if (!USE_MOCKS) return request<CicloResumen[]>("/ciclos");
+  await esperar();
+  return structuredClone(leerDemo().ciclos);
+};
+
+/** HU-04 · POST /ciclos: la Administradora registra la vigencia a mano (D7). */
+export const crearCiclo = async (datos: CicloPayload): Promise<CicloResumen> => {
+  if (!USE_MOCKS) return request<CicloResumen>("/ciclos", { method: "POST", body: JSON.stringify(datos) });
+  await esperar();
+  const demo = leerDemo();
+  const ciclo = cicloDemo(datos, siguienteIdDemo(demo));
+  if (demo.ciclos.some((c) => c.estado === "VIGENTE" && c.licenciatura.id === ciclo.licenciatura.id)) {
+    throw new ApiError(409, `${ciclo.licenciatura.nombre} ya tiene un ciclo vigente.`);
+  }
+  demo.ciclos.push(ciclo);
+  guardarDemo(demo);
+  return structuredClone(ciclo);
+};
+
+/** HU-04 · PATCH /ciclos/:cicloId: solo mientras la coordinación no haya capturado su plan. */
+export const actualizarCiclo = async (cicloId: string, datos: CicloPayload): Promise<CicloResumen> => {
+  if (!USE_MOCKS) return request<CicloResumen>(`/ciclos/${encodeURIComponent(cicloId)}`, { method: "PATCH", body: JSON.stringify(datos) });
+  await esperar();
+  const demo = leerDemo();
+  const actual = demo.ciclos.find((c) => c.id === cicloId);
+  if (!actual) throw new ApiError(404, "No existe ese ciclo de acreditación.");
+  if (actual.plan) throw new ApiError(409, "La coordinación ya empezó a capturar su plan; la vigencia ya no se puede cambiar.");
+  const corregido = cicloDemo(datos, cicloId);
+  if (corregido.licenciatura.id !== actual.licenciatura.id && demo.ciclos.some((c) => c.estado === "VIGENTE" && c.licenciatura.id === corregido.licenciatura.id)) {
+    throw new ApiError(409, `${corregido.licenciatura.nombre} ya tiene un ciclo vigente.`);
+  }
+  demo.ciclos = demo.ciclos.map((c) => (c.id === cicloId ? corregido : c));
+  guardarDemo(demo);
+  return structuredClone(corregido);
 };
 
 /** HU-04 · GET /mi-plan: plan del ciclo vigente de la licenciatura de Captura/Auxiliar (incluye su cicloId). */
 export const obtenerMiPlan = async (): Promise<PlanDeMejora> => {
   if (!USE_MOCKS) return request<PlanDeMejora>("/mi-plan");
   await esperar();
-  return structuredClone(mockPlan);
+  const usuario = leerUsuarioSesion() ?? CAPTURA_DEMO;
+  const ciclo = leerDemo().ciclos.find((c) => c.estado === "VIGENTE" && c.licenciatura.nombre === usuario.licenciatura);
+  if (!ciclo) throw new ApiError(404, SIN_CICLO);
+  return structuredClone(leerDemo().planes[ciclo.id] ?? planVacio(ciclo));
 };
 
-/** HU-04 · GET /ciclos/:cicloId/plan (el Administrador consulta cualquier ciclo). */
+/** HU-04 · GET /ciclos/:cicloId/plan (la Administradora consulta cualquier ciclo). */
 export const obtenerPlanDelCiclo = async (cicloId: string): Promise<PlanDeMejora> => {
   if (!USE_MOCKS) return request<PlanDeMejora>(`/ciclos/${encodeURIComponent(cicloId)}/plan`);
   await esperar();
-  return structuredClone(mockPlan);
+  const demo = leerDemo();
+  const ciclo = demo.ciclos.find((c) => c.id === cicloId);
+  if (!ciclo) throw new ApiError(404, "No existe ese ciclo de acreditación.");
+  return structuredClone(demo.planes[cicloId] ?? planVacio(ciclo));
 };
 
 /** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones → la recomendación guardada. */
@@ -201,34 +240,74 @@ export const agregarRecomendacion = async (cicloId: string, datos: NuevaRecomend
     return request<RecomendacionPlan>(`/ciclos/${encodeURIComponent(cicloId)}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
   }
   await esperar();
-  return agregarAlPlanDeEjemplo(datos);
+  return agregarEnDemo(cicloId, datos);
 };
 
-// Con mocks, las capturas se guardan en memoria para que la tabla del Anexo 1 se actualice.
-const mockPlan: PlanDeMejora = structuredClone(mock.PLAN_MIO);
+// ---------- Modo demostración: mismas reglas que el backend ----------
 
-const agregarAlPlanDeEjemplo = (datos: NuevaRecomendacionPayload): RecomendacionPlan => {
-  const nombreCategoria = mock.CATEGORIAS[Number(datos.categoriaId) - 1] ?? "Sin categoría";
-  let indicador = mockPlan.indicadores.find((i) => i.id === datos.indicadorId);
+const itemDe = (lista: { id: string; nombre: string }[], id: string, campo: string) => {
+  const item = lista.find((x) => x.id === id);
+  if (!item) throw new ApiError(400, `Selecciona ${campo} del catálogo.`);
+  return { id: item.id, nombre: item.nombre };
+};
+
+const cicloDemo = (datos: CicloPayload, id: string): CicloResumen => {
+  const error = errorVigencia(datos);
+  if (error) throw new ApiError(400, error);
+  return {
+    id,
+    licenciatura: itemDe(CATALOGOS_DEMO.licenciaturas, datos.licenciaturaId, "una licenciatura"),
+    organismo: itemDe(CATALOGOS_DEMO.organismos, datos.organismoId, "un organismo acreditador"),
+    fechaEmision: datos.fechaEmision,
+    vigenciaInicio: datos.vigenciaInicio,
+    vigenciaFin: datos.vigenciaFin,
+    estado: "VIGENTE",
+    referenciaConstancia: datos.referenciaConstancia?.trim() || null,
+    plan: null,
+  };
+};
+
+const agregarEnDemo = (cicloId: string, datos: NuevaRecomendacionPayload): RecomendacionPlan => {
+  const demo = leerDemo();
+  const ciclo = demo.ciclos.find((c) => c.id === cicloId);
+  if (!ciclo) throw new ApiError(404, "No existe ese ciclo de acreditación.");
+  if (datos.fechaCumplimiento < ciclo.vigenciaInicio || datos.fechaCumplimiento > ciclo.vigenciaFin) {
+    throw new ApiError(400, `La fecha de cumplimiento debe estar entre ${ciclo.vigenciaInicio} y ${ciclo.vigenciaFin}.`);
+  }
+  const errorMeta = datos.metas.map(errorMetaMedible).find((e) => e !== null);
+  if (errorMeta) throw new ApiError(400, errorMeta);
+
+  const plan = demo.planes[cicloId] ?? planVacio(ciclo);
+  if (!plan.version) plan.version = { id: siguienteIdDemo(demo), numero: 1, estado: "BORRADOR", editable: true };
+  if (!plan.version.editable) throw new ApiError(409, "El plan está en revisión o aprobado y no se puede modificar.");
+
+  const categoria = itemDe(CATALOGOS_DEMO.categorias, datos.categoriaId, "la categoría");
+  let indicador = plan.indicadores.find((i) => i.id === datos.indicadorId);
+  if (datos.indicadorId && !indicador) throw new ApiError(404, "Ese indicador no pertenece a este plan.");
   if (!indicador) {
-    indicador = { id: `mock-${Date.now()}`, clave: null, descripcion: datos.indicador ?? "", categoria: { id: datos.categoriaId, nombre: nombreCategoria }, recomendaciones: [] };
-    mockPlan.indicadores.push(indicador);
+    indicador = { id: siguienteIdDemo(demo), clave: null, descripcion: datos.indicador?.trim() ?? "", categoria, recomendaciones: [] };
+    plan.indicadores.push(indicador);
   }
   const recomendacion: RecomendacionPlan = {
-    id: `mock-${Date.now()}-r`,
+    id: siguienteIdDemo(demo),
     descripcion: datos.descripcion,
     acciones: datos.acciones,
     metas: datos.metas,
-    areas: datos.areaIds.map((id) => ({ id, nombre: AREAS_EJEMPLO[Number(id) - 1] ?? id })),
+    areas: datos.areaIds.map((id) => itemDe(CATALOGOS_DEMO.areas, id, "el área responsable")),
     fechaCumplimiento: datos.fechaCumplimiento,
     etiquetaFecha: datos.etiquetaFecha ?? null,
   };
   indicador.recomendaciones.push(recomendacion);
-  return recomendacion;
+
+  demo.planes[cicloId] = plan;
+  const total = plan.indicadores.reduce((suma, i) => suma + i.recomendaciones.length, 0);
+  ciclo.plan = { versionId: plan.version.id, numero: plan.version.numero, estado: plan.version.estado, recomendaciones: total };
+  guardarDemo(demo);
+  return structuredClone(recomendacion);
 };
 
 /** HU-15 · GET /reportes/atencion?licenciaturaId= */
 export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<AtencionLicenciatura[]> => {
   if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaId ? `?licenciaturaId=${encodeURIComponent(licenciaturaId)}` : ""}`);
-  return mock.ATENCION;
+  return [];
 };

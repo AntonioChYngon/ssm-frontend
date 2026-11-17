@@ -1,36 +1,56 @@
 "use client";
 
-import { useState } from "react";
+// HU-12 · Hitos intermedios por recomendación. Parte de las recomendaciones reales del plan (GET /mi-plan), sin hitos precargados.
+import { useEffect, useState } from "react";
 import { Button, IconButton, LinkButton } from "@/components/ui/Button";
-import { Alert, Card, PageTitle } from "@/components/ui/Display";
-import { TextField } from "@/components/ui/Field";
-import { guardarHitos } from "@/lib/api";
-import { HITOS } from "@/lib/mock-data";
+import { Alert, Card, EmptyState, PageTitle } from "@/components/ui/Display";
+import { SelectField, TextField } from "@/components/ui/Field";
+import { ApiError, guardarHitos, obtenerMiPlan } from "@/lib/api";
+import { fechaCorta } from "@/lib/reglas";
+import type { RecomendacionPlan } from "@/lib/types";
 
 type Borrador = { key: string; descripcion: string; fecha: string; porcentaje: string };
 type Errores = { descripcion?: string; fecha?: string; porcentaje?: string };
 
-// Reglas de HU-12: fecha obligatoria, % esperado entero entre 1 y 99, fechas en orden ascendente.
-const validar = (hitos: Borrador[]): Errores[] =>
+// Reglas de HU-12: fecha obligatoria y anterior a la fecha de cumplimiento, % esperado entero entre 1 y 99, fechas en orden.
+const validar = (hitos: Borrador[], fechaCumplimiento: string): Errores[] =>
   hitos.map((h, i) => {
     const errores: Errores = {};
     if (!h.descripcion.trim()) errores.descripcion = "Describe el hito.";
     if (!h.fecha) errores.fecha = "Elige una fecha.";
     const anterior = hitos[i - 1];
-    if (h.fecha && anterior?.fecha && h.fecha <= anterior.fecha) errores.fecha = `Debe ser posterior al hito ${i} (${anterior.fecha.split("-").reverse().join("/")}).`;
+    if (h.fecha && anterior?.fecha && h.fecha <= anterior.fecha) errores.fecha = `Debe ser posterior al hito ${i} (${fechaCorta(anterior.fecha)}).`;
+    if (h.fecha && fechaCumplimiento && h.fecha >= fechaCumplimiento) errores.fecha = `Debe ser anterior a la fecha de cumplimiento (${fechaCorta(fechaCumplimiento)}).`;
     const pct = Number(h.porcentaje);
     if (!Number.isInteger(pct) || pct < 1 || pct > 99) errores.porcentaje = "Escribe un número entre 1 y 99.";
     return errores;
   });
 
-const INICIAL: Borrador[] = HITOS.map((h) => ({ key: h.id, descripcion: h.descripcion, fecha: h.fechaCompromiso, porcentaje: String(h.porcentajeEsperado) }));
-INICIAL[2] = { ...INICIAL[2]!, porcentaje: "120" };
-INICIAL[3] = { ...INICIAL[3]!, fecha: "2026-01-15" };
+type Opcion = { etiqueta: string; recomendacion: RecomendacionPlan };
 
 const HitosPage = () => {
-  const [hitos, setHitos] = useState<Borrador[]>(INICIAL);
+  const [opciones, setOpciones] = useState<Opcion[] | null>(null);
+  const [aviso, setAviso] = useState<string>();
+  const [elegida, setElegida] = useState("");
+  const [hitos, setHitos] = useState<Borrador[]>([]);
   const [guardado, setGuardado] = useState(false);
-  const errores = validar(hitos);
+  const [errorGuardar, setErrorGuardar] = useState<string>();
+
+  useEffect(() => {
+    obtenerMiPlan()
+      .then((plan) => {
+        const lista = plan.indicadores.flatMap((i) => i.recomendaciones).map((r, n) => ({ etiqueta: `${n + 1} · ${r.descripcion.slice(0, 80)}`, recomendacion: r }));
+        setOpciones(lista);
+        setElegida(lista[0]?.etiqueta ?? "");
+      })
+      .catch((e) => {
+        setOpciones([]);
+        setAviso(e instanceof ApiError ? e.message : "No pudimos cargar tu plan de mejora.");
+      });
+  }, []);
+
+  const recomendacion = opciones?.find((o) => o.etiqueta === elegida)?.recomendacion;
+  const errores = validar(hitos, recomendacion?.fechaCumplimiento ?? "");
   const conError = errores.filter((e) => Object.keys(e).length > 0).length;
 
   const actualizar = (key: string, campo: keyof Omit<Borrador, "key">, valor: string) => {
@@ -39,23 +59,47 @@ const HitosPage = () => {
   };
 
   const guardar = async () => {
-    if (conError) return;
-    await guardarHitos("r2", hitos.map((h) => ({ descripcion: h.descripcion, fechaCompromiso: h.fecha, porcentajeEsperado: Number(h.porcentaje) })));
-    setGuardado(true);
+    if (conError || !recomendacion || hitos.length === 0) return;
+    setErrorGuardar(undefined);
+    try {
+      await guardarHitos(recomendacion.id, hitos.map((h) => ({ descripcion: h.descripcion, fechaCompromiso: h.fecha, porcentajeEsperado: Number(h.porcentaje) })));
+      setGuardado(true);
+    } catch (e) {
+      setErrorGuardar(e instanceof ApiError ? e.message : "No pudimos guardar los hitos. Intenta de nuevo.");
+    }
   };
+
+  if (opciones !== null && opciones.length === 0) {
+    return (
+      <>
+        <PageTitle crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Hitos" }]} title="Configuración de hitos" />
+        <Card>
+          <EmptyState
+            icon="objetivo"
+            titulo="Aún no hay recomendaciones"
+            mensaje={aviso ?? "Captura primero las recomendaciones de tu Plan de Mejora; después podrás definir sus hitos intermedios."}
+            action={<LinkButton href="/licenciatura/plan" icon="documento">Ir al plan de mejora</LinkButton>}
+          />
+        </Card>
+      </>
+    );
+  }
 
   return (
     <>
       <PageTitle
-        crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Plan de mejora", href: "/licenciatura/plan" }, { label: "Recomendación 2" }, { label: "Hitos" }]}
+        crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Plan de mejora", href: "/licenciatura/plan" }, { label: "Hitos" }]}
         title="Configuración de hitos"
-        subtitle="Recomendación 2 · Actualizar las asignaturas optativas"
-        actions={<><LinkButton href="/licenciatura/plan" variant="contorno">Cancelar</LinkButton><Button icon="check" onClick={guardar} disabled={conError > 0}>Guardar hitos</Button></>}
+        subtitle={recomendacion ? `Fecha de cumplimiento de la recomendación: ${fechaCorta(recomendacion.fechaCumplimiento)}` : "Cargando tus recomendaciones…"}
+        actions={<><LinkButton href="/licenciatura/plan" variant="contorno">Cancelar</LinkButton><Button icon="check" onClick={guardar} disabled={conError > 0 || hitos.length === 0}>Guardar hitos</Button></>}
       />
+      <SelectField label="Recomendación" options={(opciones ?? []).map((o) => o.etiqueta)} value={elegida} onChange={(e) => { setElegida(e.target.value); setHitos([]); setGuardado(false); }} />
       <Alert tipo="info">Cada hito necesita una fecha y un % esperado entre 1 y 99. El 100% se alcanza al cerrar la recomendación. Las fechas deben ir en orden.</Alert>
       {guardado && <Alert tipo="exito">Hitos guardados correctamente.</Alert>}
+      {errorGuardar && <Alert tipo="error">{errorGuardar}</Alert>}
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow">
+          {hitos.length === 0 && <p className="t-muted" style={{ margin: 0 }}>Esta recomendación aún no tiene hitos. Agrega el primero.</p>}
           {hitos.map((h, i) => {
             const e = errores[i] ?? {};
             const invalido = Object.keys(e).length > 0;

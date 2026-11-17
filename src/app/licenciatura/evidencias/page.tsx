@@ -1,12 +1,12 @@
 "use client";
 
+// HU-07 · Carga de evidencias por hito. Arranca en ceros: las evidencias se suben a un hito configurado (HU-12).
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { Button, IconButton } from "@/components/ui/Button";
-import { Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
+import { Button, IconButton, LinkButton } from "@/components/ui/Button";
+import { Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { subirEvidencia } from "@/lib/api";
-import { EVIDENCIAS_EN_PROCESO, EVIDENCIAS_HITO } from "@/lib/mock-data";
+import { obtenerMiPlan, subirEvidencia } from "@/lib/api";
 import type { Evidencia } from "@/lib/types";
 
 const PERMITIDOS = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png"];
@@ -16,11 +16,21 @@ const extension = (nombre: string) => nombre.split(".").pop()?.toLowerCase() ?? 
 const tamanoLegible = (bytes: number) => (bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
 
 const EvidenciasPage = () => {
-  const [archivos, setArchivos] = useState<Evidencia[]>(EVIDENCIAS_EN_PROCESO);
+  const [archivos, setArchivos] = useState<Evidencia[]>([]);
+  const [recomendaciones, setRecomendaciones] = useState<string[]>([]);
+  // TODO(HU-12/HU-07): cargar los hitos reales de la recomendación elegida (GET /recomendaciones/:id/hitos).
+  const hitos: { id: string; descripcion: string }[] = [];
+  const hitoId = hitos[0]?.id;
+
+  useEffect(() => {
+    obtenerMiPlan()
+      .then((plan) => setRecomendaciones(plan.indicadores.flatMap((i) => i.recomendaciones).map((r, n) => `${n + 1} · ${r.descripcion.slice(0, 80)}`)))
+      .catch(() => setRecomendaciones([]));
+  }, []);
   const [arrastrando, setArrastrando] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  // Simula el avance de subida y conversión a PDF mientras no hay backend.
+  // Muestra el avance de subida y conversión a PDF de los archivos que el usuario agrega.
   useEffect(() => {
     const timer = window.setInterval(() => {
       setArchivos((prev) => prev.map((a): Evidencia => {
@@ -34,14 +44,14 @@ const EvidenciasPage = () => {
   }, []);
 
   const agregar = (lista: FileList | null) => {
-    if (!lista) return;
+    if (!lista || !hitoId) return;
     const nuevos: Evidencia[] = Array.from(lista).map((file): Evidencia => {
       const valido = PERMITIDOS.includes(extension(file.name));
       const pesado = file.size > MAX_MB * 1024 * 1024;
-      if (valido && !pesado) void subirEvidencia("h2", file);
+      if (valido && !pesado) void subirEvidencia(hitoId, file);
       return {
         id: crypto.randomUUID(),
-        hitoId: "h2",
+        hitoId,
         nombreOriginal: file.name,
         tamano: tamanoLegible(file.size),
         estado: valido && !pesado ? "SUBIENDO" : "ERROR",
@@ -64,14 +74,23 @@ const EvidenciasPage = () => {
         crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Carga de evidencias" }]}
         title="Carga de evidencias"
         subtitle="Sube los documentos que respaldan cada hito. Los convertimos a PDF automáticamente."
-        actions={<Button variant="contorno" icon="descargar">Exportar expediente PDF</Button>}
       />
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow" style={{ gap: 20 }}>
           <div className="grid-2" style={{ gap: 16 }}>
-            <SelectField label="Recomendación *" options={["2 · Plan de estudios", "1 · Personal académico", "3 · Infraestructura"]} />
-            <SelectField label="Hito *" options={["Propuesta de 3 optativas nuevas", "Diagnóstico con el Comité de Carrera"]} />
+            <SelectField label="Recomendación *" options={recomendaciones.length ? recomendaciones : ["Sin recomendaciones capturadas"]} disabled={!recomendaciones.length} />
+            <SelectField label="Hito *" options={hitos.length ? hitos.map((h) => h.descripcion) : ["Sin hitos configurados"]} disabled={!hitos.length} />
           </div>
+          {!hitoId ? (
+            <Card>
+              <EmptyState
+                icon="objetivo"
+                titulo="Primero configura un hito"
+                mensaje="Las evidencias se suben a un hito de una recomendación. Cuando configures los hitos de tu plan, podrás cargar aquí sus documentos."
+                action={<LinkButton href="/licenciatura/hitos" icon="objetivo">Configurar hitos</LinkButton>}
+              />
+            </Card>
+          ) : (
           <div
             className={["dropzone", arrastrando ? "dropzone--over" : ""].join(" ")}
             onDragOver={(e) => { e.preventDefault(); setArrastrando(true); }}
@@ -85,6 +104,8 @@ const EvidenciasPage = () => {
             <input ref={input} type="file" multiple hidden accept={PERMITIDOS.map((e) => `.${e}`).join(",")} onChange={(e) => agregar(e.target.files)} />
             <span className="t-small t-muted">PDF, Word, Excel, JPG o PNG · máximo {MAX_MB} MB por archivo</span>
           </div>
+          )}
+          {archivos.length > 0 && (
           <Card title="Archivos en proceso" subtitle={`${archivos.length} archivos · no cierres esta ventana mientras se suben`} style={{ gap: 0 }}>
             <ul style={{ listStyle: "none", margin: 0, padding: 0 }} aria-live="polite">
               {archivos.map((a) => (
@@ -112,23 +133,11 @@ const EvidenciasPage = () => {
               ))}
             </ul>
           </Card>
+          )}
         </div>
         <aside className="stack side-340">
-          <Card title="Evidencias de este hito" actions={<Badge estado="Completado">{EVIDENCIAS_HITO.length} PDF</Badge>} style={{ gap: 12 }}>
-            {EVIDENCIAS_HITO.map((e) => (
-              <div key={e.nombre} className="row" style={{ gap: 12 }}>
-                <span className="kpi__icon" style={{ borderRadius: 8, background: "var(--color-danger-bg)", color: "var(--color-danger-text)" }}><Icon name="documento" size={20} /></span>
-                <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="t-medium" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.nombre}</div>
-                  <div className="t-small t-muted">Subido el {e.fecha}</div>
-                </div>
-                <IconButton icon="ver" label={`Ver ${e.nombre}`} />
-              </div>
-            ))}
-          </Card>
-          <Card style={{ padding: 16, gap: 0 }}>
-            <span className="t-small t-medium t-muted">Hito: Aprobación del Consejo Técnico</span>
-            <EmptyState titulo="Aún no hay evidencias" mensaje="Cuando el Consejo Técnico apruebe la propuesta, sube aquí el acta." action={<Button icon="subir" onClick={() => input.current?.click()}>Subir evidencias</Button>} />
+          <Card title="Evidencias de este hito" style={{ gap: 12 }}>
+            <p className="t-small t-muted" style={{ margin: 0 }}>Aún no hay evidencias cargadas.</p>
           </Card>
         </aside>
       </div>

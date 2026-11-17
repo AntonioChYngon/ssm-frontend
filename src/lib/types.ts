@@ -159,7 +159,31 @@ export type CambiarAsignacionPayload = { rol: Exclude<Rol, "ADMINISTRADOR">; coo
 
 /** HU-04 · GET /catalogos */
 export type ItemCatalogo = { id: string; nombre: string };
-export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
+export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[]; licenciaturas: ItemCatalogo[] };
+
+/** HU-04 · GET /ciclos (solo Administradora): un ciclo de acreditación con el estado de su plan. */
+export type CicloResumen = {
+  id: string;
+  licenciatura: ItemCatalogo;
+  organismo: ItemCatalogo;
+  /** AAAA-MM-DD. Todas las escribe la Administradora (decisión D7). */
+  fechaEmision: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  estado: "VIGENTE" | "CERRADO" | "HISTORICO";
+  referenciaConstancia: string | null;
+  plan: { versionId: string; numero: number; estado: EstadoVersionPlan; recomendaciones: number } | null;
+};
+
+/** HU-04 · POST /ciclos y PATCH /ciclos/:cicloId */
+export type CicloPayload = {
+  licenciaturaId: string;
+  organismoId: string;
+  fechaEmision: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  referenciaConstancia?: string;
+};
 
 /** Estados de version_plan en el backend (CHECK ck_plan_estado). */
 export type EstadoVersionPlan = "BORRADOR" | "EN_REVISION" | "APROBADO" | "DEVUELTO";

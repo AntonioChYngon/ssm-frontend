@@ -6,7 +6,8 @@ export type Segmento = { valor: number; color: string; label: string };
 export const Donut = ({ segmentos, size = 200, centro, subtitulo }: { segmentos: Segmento[]; size?: number; centro: string; subtitulo: string }) => {
   const total = segmentos.reduce((suma, s) => suma + s.valor, 0);
   let acumulado = 0;
-  const stops = segmentos
+  // Sin datos (sistema en ceros): anillo gris en lugar de un degradado con NaN%.
+  const stops = total === 0 ? "var(--color-gray-200) 0% 100%" : segmentos
     .map((s) => {
       const inicio = (acumulado / total) * 100;
       acumulado += s.valor;

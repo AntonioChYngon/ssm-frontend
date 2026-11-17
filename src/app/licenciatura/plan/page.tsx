@@ -4,11 +4,12 @@
 // Datos: GET /mi-plan y GET /catalogos. Guardado: POST /ciclos/:cicloId/plan/recomendaciones.
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Button, LinkButton } from "@/components/ui/Button";
-import { Alert, Badge, Card, DataTable, EmptyState, PageTitle } from "@/components/ui/Display";
+import { TablaAnexo1 } from "@/components/plan/TablaAnexo1";
+import { Alert, Badge, Card, EmptyState, PageTitle } from "@/components/ui/Display";
 import { Checkbox, SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { agregarRecomendacion, ApiError, obtenerCatalogos, obtenerMiPlan } from "@/lib/api";
 import { errorMetaMedible, fechaCorta, lineas } from "@/lib/reglas";
-import { ESTADO_VERSION_BADGE, type Catalogos, type IndicadorPlan, type PlanDeMejora, type RecomendacionPlan } from "@/lib/types";
+import { ESTADO_VERSION_BADGE, type Catalogos, type IndicadorPlan, type PlanDeMejora } from "@/lib/types";
 
 const ELIGE = "Selecciona una opción";
 const NUEVO_INDICADOR = "+ Nuevo indicador";
@@ -39,9 +40,6 @@ const VACIO: Formulario = {
 
 type Errores = Partial<Record<keyof Formulario, string>>;
 
-/** Fila de la tabla "Plan de Mejora Continua" (Anexo 1). */
-type FilaAnexo = { indicador: IndicadorPlan; recomendacion: RecomendacionPlan };
-
 /** Etiqueta única para el selector de indicadores (el select trabaja con textos). */
 const etiquetaIndicador = (i: IndicadorPlan, n: number) => `${i.clave ?? `Indicador ${n}`} · ${i.descripcion.slice(0, 70)}`;
 
@@ -62,25 +60,26 @@ const validar = (f: Formulario, plan: PlanDeMejora): Errores => {
   return Object.fromEntries(Object.entries(errores).filter(([, v]) => v)) as Errores;
 };
 
-const Lista = ({ elementos }: { elementos: string[] }) => (
-  <ul style={{ margin: 0, paddingLeft: 18 }}>
-    {elementos.map((e, i) => <li key={i}>{e}</li>)}
-  </ul>
-);
-
 const CapturaPlanPage = () => {
   const [plan, setPlan] = useState<PlanDeMejora | null>(null);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [errorCarga, setErrorCarga] = useState<string>();
+  /** 404 de /mi-plan: la Administradora todavía no registra el ciclo (vigencia) de esta licenciatura. */
+  const [sinCiclo, setSinCiclo] = useState<string>();
   const [form, setForm] = useState<Formulario>(VACIO);
   const [errores, setErrores] = useState<Errores>({});
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "exito" | "error"; texto: string }>();
+  const [filtroArea, setFiltroArea] = useState("");
 
   const cargarPlan = useCallback(async () => {
     try {
       setPlan(await obtenerMiPlan());
     } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        setSinCiclo(error.message);
+        return;
+      }
       setErrorCarga(error instanceof ApiError ? error.message : "No pudimos cargar tu plan de mejora. Intenta de nuevo.");
     }
   }, []);
@@ -101,7 +100,6 @@ const CapturaPlanPage = () => {
     () => new Map(indicadoresDeCategoria.map((i, n) => [etiquetaIndicador(i, n + 1), i])),
     [indicadoresDeCategoria],
   );
-  const filas: FilaAnexo[] = (plan?.indicadores ?? []).flatMap((indicador) => indicador.recomendaciones.map((recomendacion) => ({ indicador, recomendacion })));
   const editable = plan?.version?.editable ?? true;
 
   const cambiar = <K extends keyof Formulario>(campo: K, valor: Formulario[K]) => {
@@ -150,6 +148,21 @@ const CapturaPlanPage = () => {
       setEnviando(false);
     }
   };
+
+  if (sinCiclo) {
+    return (
+      <>
+        <PageTitle crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Plan de mejora" }]} title="Captura del plan de mejora" />
+        <Card>
+          <EmptyState
+            icon="calendario"
+            titulo="Tu plan aún no se puede capturar"
+            mensaje={`${sinCiclo} Cuando la Unidad de Planeación registre la vigencia, aquí aparecerá el formulario de captura.`}
+          />
+        </Card>
+      </>
+    );
+  }
 
   if (errorCarga) {
     return (
@@ -241,11 +254,19 @@ const CapturaPlanPage = () => {
               </div>
               <fieldset className="stack" style={{ gap: 8, border: 0, margin: 0, padding: 0 }} aria-describedby={errores.areaIds ? "areas-error" : undefined}>
                 <legend className="field__label">Área(s) responsable(s) *</legend>
-                <div className="grid-2" style={{ gap: 8 }}>
-                  {catalogos.areas.map((a) => (
-                    <Checkbox key={a.id} label={a.nombre} checked={form.areaIds.includes(a.id)} onChange={(e) => alternarArea(a.id, e.target.checked)} />
-                  ))}
+                <TextField label="Buscar área" icon="buscar" placeholder="Ej.: Secretaría General, Coordinación de…" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)} />
+                <div className="grid-2 muted-box" style={{ gap: 8, maxHeight: 240, overflowY: "auto" }}>
+                  {catalogos.areas
+                    .filter((a) => form.areaIds.includes(a.id) || a.nombre.toLowerCase().includes(filtroArea.trim().toLowerCase()))
+                    .map((a) => (
+                      <Checkbox key={a.id} label={a.nombre} checked={form.areaIds.includes(a.id)} onChange={(e) => alternarArea(a.id, e.target.checked)} />
+                    ))}
                 </div>
+                <p className="t-small t-muted" style={{ margin: 0 }}>
+                  {form.areaIds.length === 0
+                    ? "Ninguna área seleccionada."
+                    : `Seleccionadas: ${catalogos.areas.filter((a) => form.areaIds.includes(a.id)).map((a) => a.nombre).join(", ")}.`}
+                </p>
                 {errores.areaIds && <p id="areas-error" className="t-small t-danger" role="alert" style={{ margin: 0 }}>{errores.areaIds}</p>}
               </fieldset>
               <div className="grid-2">
@@ -272,28 +293,7 @@ const CapturaPlanPage = () => {
         </Card>
       </div>
 
-      <Card title="Plan de Mejora Continua" subtitle={`Anexo 1 · ${plan.licenciatura}`}>
-        {filas.length === 0 ? (
-          <EmptyState titulo="Aún no hay recomendaciones" mensaje="Cuando guardes la primera, el plan aparecerá aquí con el formato del Anexo 1." />
-        ) : (
-          <DataTable<FilaAnexo>
-            caption="Plan de Mejora Continua (Anexo 1)"
-            rows={filas}
-            rowKey={(f) => f.recomendacion.id}
-            columns={[
-              { header: "Categoría", width: 140, render: (f) => f.indicador.categoria.nombre },
-              { header: "Indicador", width: 180, render: (f) => `${f.indicador.clave ? `${f.indicador.clave} ` : ""}${f.indicador.descripcion}` },
-              { header: "Recomendación", render: (f) => f.recomendacion.descripcion },
-              { header: "Acciones", render: (f) => <Lista elementos={f.recomendacion.acciones} /> },
-              { header: "Metas", render: (f) => <Lista elementos={f.recomendacion.metas} /> },
-              { header: "Área responsable", width: 160, render: (f) => f.recomendacion.areas.map((a) => a.nombre).join(", ") },
-              { header: "Fecha de cumplimiento", width: 130, render: (f) => (
-                <span>{fechaCorta(f.recomendacion.fechaCumplimiento)}{f.recomendacion.etiquetaFecha && <><br /><span className="t-small t-muted">{f.recomendacion.etiquetaFecha}</span></>}</span>
-              ) },
-            ]}
-          />
-        )}
-      </Card>
+      <TablaAnexo1 plan={plan} mensajeVacio="Cuando guardes la primera, el plan aparecerá aquí con el formato del Anexo 1." />
     </>
   );
 };

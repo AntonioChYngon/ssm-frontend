@@ -1,14 +1,21 @@
-import { notFound } from "next/navigation";
-import { INFORMES } from "@/lib/mock-data";
-import { ValidacionInforme } from "./ValidacionInforme";
+import { LinkButton } from "@/components/ui/Button";
+import { Card, EmptyState, PageTitle } from "@/components/ui/Display";
 
-export const generateStaticParams = () => INFORMES.map((i) => ({ id: i.id }));
+// TODO(HU-08): cargar el informe con GET /informes/:id y mostrar su PDF y las acciones de validar o devolver.
+const InformePage = () => (
+  <>
+    <PageTitle
+      crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Informes de seguimiento", href: "/admin/informes" }, { label: "Informe" }]}
+      title="Informe de seguimiento"
+    />
+    <Card>
+      <EmptyState
+        titulo="Informe no disponible"
+        mensaje="Este informe no existe todavía. La revisión de informes se habilita con la HU-08."
+        action={<LinkButton href="/admin/informes" variant="contorno" icon="flecha-izquierda">Volver a informes</LinkButton>}
+      />
+    </Card>
+  </>
+);
 
-const ValidacionInformePage = async ({ params }: { params: Promise<{ id: string }> }) => {
-  const { id } = await params;
-  const informe = INFORMES.find((i) => i.id === id);
-  if (!informe) notFound();
-  return <ValidacionInforme informe={informe} />;
-};
-
-export default ValidacionInformePage;
+export default InformePage;

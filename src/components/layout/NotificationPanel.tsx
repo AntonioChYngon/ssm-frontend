@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Badge } from "@/components/ui/Display";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Radio } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ChipGroup, Drawer } from "@/components/ui/Interactive";
-import { NOTIFICACIONES } from "@/lib/mock-data";
-import type { CanalNotificacion, TipoNotificacion } from "@/lib/types";
+import { listarNotificaciones } from "@/lib/api";
+import type { CanalNotificacion, Notificacion, TipoNotificacion } from "@/lib/types";
 
 const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; filtro: string }> = {
   VENCIMIENTO: { icon: "reloj", bg: "var(--color-danger-bg)", fg: "var(--color-danger-text)", filtro: "Vencidos" },
@@ -17,7 +17,11 @@ const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; f
 };
 
 export const NotificationPanel = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
-  const [items, setItems] = useState(NOTIFICACIONES);
+  const [items, setItems] = useState<Notificacion[]>([]);
+
+  useEffect(() => {
+    if (open) listarNotificaciones().then(setItems).catch(() => setItems([]));
+  }, [open]);
   const [filtro, setFiltro] = useState("Todas");
   const [canal, setCanal] = useState<CanalNotificacion>("AMBOS");
 
@@ -44,6 +48,9 @@ export const NotificationPanel = ({ open, onClose }: { open: boolean; onClose: (
         <Button variant="texto" icon="check" onClick={marcarTodas}>Marcar todas como leídas</Button>
       </div>
       <ul style={{ listStyle: "none", margin: 0, padding: 0, overflowY: "auto", flex: 1, borderTop: "1px solid var(--color-gray-200)" }}>
+        {visibles.length === 0 && (
+          <li className="t-small t-muted" style={{ padding: "24px" }}>No tienes notificaciones.</li>
+        )}
         {visibles.map((n) => {
           const tipo = TIPO[n.tipo];
           return (
