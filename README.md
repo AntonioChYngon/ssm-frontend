@@ -33,7 +33,7 @@ src/
     admin/              dashboard, usuarios, planes/[id], informes/[id],
                         reportes/incumplimiento, reportes/atencion,
                         historico, transversales, bitacora
-    licenciatura/       dashboard, plan, hitos, evidencias, observaciones
+    licenciatura/       dashboard, plan, metas, evidencias, observaciones
     perfil/
   components/
     ui/                 Icon, Button, Field, Display, Interactive, Charts
@@ -65,7 +65,7 @@ src/
 | 14 Bitácora de auditoría | `/admin/bitacora` | HU-03 |
 | 15 Dashboard de licenciatura | `/licenciatura/dashboard` | HU-13 |
 | 16 Captura de plan | `/licenciatura/plan` | HU-04 |
-| 17 Configuración de hitos | `/licenciatura/hitos` | HU-12 |
+| 17 Configuración de metas | `/licenciatura/metas` | HU-12 |
 | 18 Carga de evidencias | `/licenciatura/evidencias` | HU-07 |
 | 19 Consulta de observaciones | `/licenciatura/observaciones` | HU-05 / HU-08 |
 | 20 Perfil | `/perfil` | HU-01 |

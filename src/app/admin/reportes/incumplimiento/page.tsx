@@ -28,7 +28,7 @@ const IncumplimientoPage = () => {
       <PageTitle
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Reportes" }, { label: "Incumplimiento" }]}
         title="Reporte de incumplimiento"
-        subtitle="Hitos cuyo avance real está por debajo del porcentaje esperado a la fecha de corte."
+        subtitle="Metas cuyo avance real está por debajo del porcentaje esperado a la fecha de corte."
         actions={<><Button variant="contorno" icon="descargar">Exportar PDF</Button><Button variant="secundario" icon="descargar">Exportar Excel</Button></>}
       />
       <Card>
@@ -41,15 +41,15 @@ const IncumplimientoPage = () => {
         </div>
       </Card>
       <Alert tipo={filas.length ? "error" : "exito"}>
-        {filas.length ? `${filas.length} hitos incumplidos en ${afectadas} licenciaturas al ${fechaCorte.split("-").reverse().join("/")}.` : "No hay hitos incumplidos con estos filtros."}
+        {filas.length ? `${filas.length} metas incumplidas en ${afectadas} licenciaturas al ${fechaCorte.split("-").reverse().join("/")}.` : "No hay metas incumplidas con estos filtros."}
       </Alert>
       <DataTable<Incumplimiento>
-        caption="Hitos incumplidos"
+        caption="Metas incumplidas"
         rows={filas}
-        rowKey={(i) => i.hito}
+        rowKey={(i) => `${i.licenciatura}-${i.meta}`}
         columns={[
           { header: "Licenciatura", width: 250, render: (i) => <span className="t-medium">{i.licenciatura}</span> },
-          { header: "Hito", render: (i) => i.hito },
+          { header: "Meta", render: (i) => i.meta },
           { header: "Fecha compromiso", width: 170, render: (i) => i.fechaCompromiso },
           { header: "% esperado", width: 120, render: (i) => `${i.esperado}%` },
           { header: "% real", width: 150, render: (i) => <Progress value={i.real} width={80} /> },

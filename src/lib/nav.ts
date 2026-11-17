@@ -25,14 +25,13 @@ const ADMIN: NavSection[] = [
 const LICENCIATURA: NavItem[] = [
   { label: "Dashboard", href: "/licenciatura/dashboard", icon: "grafica" },
   { label: "Plan de mejora", href: "/licenciatura/plan", icon: "documento" },
-  { label: "Configuración de hitos", href: "/licenciatura/hitos", icon: "objetivo" },
+  { label: "Configuración de metas", href: "/licenciatura/metas", icon: "objetivo" },
   { label: "Carga de evidencias", href: "/licenciatura/evidencias", icon: "carpeta" },
   { label: "Observaciones", href: "/licenciatura/observaciones", icon: "mensaje" },
 ];
 
-// El Auxiliar colabora con el Capturista pero no configura hitos (reglas de roles del SSM).
+// Captura y Auxiliar tienen las mismas opciones en el Plan de Mejora (captura, envío y configuración de metas).
 export const navPorRol = (rol: Rol): NavSection[] => {
   if (rol === "ADMINISTRADOR") return ADMIN;
-  const items = rol === "AUXILIAR" ? LICENCIATURA.filter((item) => item.href !== "/licenciatura/hitos") : LICENCIATURA;
-  return [{ title: "MI LICENCIATURA", items }];
+  return [{ title: "MI LICENCIATURA", items: LICENCIATURA }];
 };

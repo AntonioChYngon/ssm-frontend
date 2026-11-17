@@ -8,6 +8,7 @@ const BADGE_CLASS: Record<EstadoBadge, string> = {
   Validado: "validado",
   Pendiente: "pendiente",
   "En revisión": "en-revision",
+  "En validación": "en-revision",
   Devuelto: "devuelto",
   Vencido: "vencido",
   Borrador: "borrador",

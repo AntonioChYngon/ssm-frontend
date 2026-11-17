@@ -9,7 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 import { ConfirmModal } from "@/components/ui/Interactive";
 import type { InformeResumen } from "@/lib/types";
 
-const HITOS = [
+const METAS = [
   { nombre: "Contratación de 2 PTC", real: 100, esperado: 100 },
   { nombre: "Actualizar optativas", real: 40, esperado: 50 },
   { nombre: "Licencias de software", real: 100, esperado: 100 },
@@ -31,7 +31,7 @@ export const ValidacionInforme = ({ informe }: { informe: InformeResumen }) => {
       <PageTitle
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Informes de seguimiento", href: "/admin/informes" }, { label: `${informe.licenciatura} · ${informe.periodo}` }]}
         title={`Informe de seguimiento · ${informe.licenciatura} ${informe.periodo}`}
-        subtitle={`Enviado el ${informe.fechaEnvio} · ${informe.hitosReportados} de ${informe.hitosTotales} hitos reportados`}
+        subtitle={`Enviado el ${informe.fechaEnvio} · ${informe.metasReportadas} de ${informe.metasTotales} metas reportadas`}
         actions={<><Button variant="peligro" icon="mensaje" onClick={() => setModal("devolver")}>Devolver</Button><Button icon="check" onClick={() => setModal("validar")}>Validar informe</Button></>}
       />
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
@@ -61,12 +61,12 @@ export const ValidacionInforme = ({ informe }: { informe: InformeResumen }) => {
         </section>
         <aside className="stack side-340">
           <Card title="Datos del informe">
-            {[["Estado", <Badge key="b" estado="En revisión" />], ["Periodo", informe.periodo], ["Fecha de corte", "30/10/2026"], ["Hitos reportados", `${informe.hitosReportados} / ${informe.hitosTotales}`], ["Evidencias", "18 PDF"]].map(([k, v]) => (
+            {[["Estado", <Badge key="b" estado="En revisión" />], ["Periodo", informe.periodo], ["Fecha de corte", "30/10/2026"], ["Metas reportadas", `${informe.metasReportadas} / ${informe.metasTotales}`], ["Evidencias", "18 PDF"]].map(([k, v]) => (
               <div key={String(k)} className="row"><span className="t-muted grow">{k}</span><span className="t-medium">{v}</span></div>
             ))}
           </Card>
-          <Card title="Hitos del periodo" style={{ gap: 12 }}>
-            {HITOS.map((h) => (
+          <Card title="Metas del periodo" style={{ gap: 12 }}>
+            {METAS.map((h) => (
               <div key={h.nombre} className="stack" style={{ gap: 4 }}>
                 <div className="row t-small"><span className="t-medium grow">{h.nombre}</span><span className="t-muted">esp. {h.esperado}%</span></div>
                 <Progress value={h.real} width={230} />

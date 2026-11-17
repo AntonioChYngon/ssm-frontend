@@ -3,14 +3,16 @@ import type {
   AtencionLicenciatura,
   AvanceLicenciatura,
   Devolucion,
+  CicloResumen,
   Evidencia,
   EventoBitacora,
-  Hito,
   Incumplimiento,
   InformeResumen,
+  Meta,
   Notificacion,
+  PlanDetalle,
   PlanResumen,
-  Recomendacion,
+  RecomendacionPlan,
   Usuario,
 } from "./types";
 
@@ -48,56 +50,91 @@ export const USUARIOS: Usuario[] = [
 ];
 
 export const PLANES: PlanResumen[] = [
-  { id: "actuaria", licenciatura: "Actuaría", organismo: "CONAC", ciclo: "2024–2029", recomendaciones: 12, avance: 68, estado: "EN_REVISION", actualizado: "10/11/2026" },
-  { id: "derecho", licenciatura: "Derecho", organismo: "CONAED", ciclo: "2024–2029", recomendaciones: 15, avance: 91, estado: "VALIDADO", actualizado: "02/10/2026" },
-  { id: "economia", licenciatura: "Economía", organismo: "CONACE", ciclo: "2024–2029", recomendaciones: 9, avance: 30, estado: "DEVUELTO", actualizado: "05/11/2026" },
-  { id: "mac", licenciatura: "Matemáticas Aplicadas y Computación", organismo: "CONAIC", ciclo: "2024–2029", recomendaciones: 11, avance: 64, estado: "EN_REVISION", actualizado: "09/11/2026" },
-  { id: "arquitectura", licenciatura: "Arquitectura", organismo: "ANPADEH", ciclo: "2024–2029", recomendaciones: 14, avance: 45, estado: "VALIDADO", actualizado: "18/09/2026" },
-  { id: "rrii", licenciatura: "Relaciones Internacionales", organismo: "ACCECISO", ciclo: "2024–2029", recomendaciones: 8, avance: 72, estado: "VALIDADO", actualizado: "22/08/2026" },
-  { id: "civil", licenciatura: "Ingeniería Civil", organismo: "CACEI", ciclo: "2024–2029", recomendaciones: 17, avance: 20, estado: "DEVUELTO", actualizado: "01/11/2026" },
-  { id: "pedagogia", licenciatura: "Pedagogía", organismo: "CEPPE", ciclo: "2024–2029", recomendaciones: 10, avance: 0, estado: "BORRADOR", actualizado: "—" },
+  { id: "actuaria", cicloId: "c-actuaria", licenciatura: "Actuaría", organismo: "CONAC", ciclo: "2024–2029", recomendaciones: 3, avance: 68, estado: "BORRADOR", actualizado: "10/11/2026" },
+  { id: "derecho", cicloId: "c-derecho", licenciatura: "Derecho", organismo: "CONAED", ciclo: "2024–2029", recomendaciones: 15, avance: 91, estado: "APROBADO", actualizado: "02/10/2026" },
+  { id: "economia", cicloId: "c-economia", licenciatura: "Economía", organismo: "CONACE", ciclo: "2024–2029", recomendaciones: 9, avance: 30, estado: "DEVUELTO", actualizado: "05/11/2026" },
+  { id: "mac", cicloId: "c-mac", licenciatura: "Matemáticas Aplicadas y Computación", organismo: "CONAIC", ciclo: "2024–2029", recomendaciones: 11, avance: 64, estado: "EN_REVISION", actualizado: "09/11/2026" },
+  { id: "arquitectura", cicloId: "c-arquitectura", licenciatura: "Arquitectura", organismo: "ANPADEH", ciclo: "2024–2029", recomendaciones: 14, avance: 45, estado: "APROBADO", actualizado: "18/09/2026" },
+  { id: "rrii", cicloId: "c-rrii", licenciatura: "Relaciones Internacionales", organismo: "ACCECISO", ciclo: "2024–2029", recomendaciones: 8, avance: 72, estado: "APROBADO", actualizado: "22/08/2026" },
+  { id: "civil", cicloId: "c-civil", licenciatura: "Ingeniería Civil", organismo: "CACEI", ciclo: "2024–2029", recomendaciones: 17, avance: 20, estado: "DEVUELTO", actualizado: "01/11/2026" },
+  { id: "pedagogia", cicloId: "c-pedagogia", licenciatura: "Pedagogía", organismo: "CEPPE", ciclo: "2024–2029", recomendaciones: 10, avance: 0, estado: "BORRADOR", actualizado: "—" },
 ];
 
-export const RECOMENDACIONES: Recomendacion[] = [
-  { id: "r1", numero: 1, categoria: "Personal académico", criterio: "1.3 Perfil del profesorado", texto: "Incrementar el número de profesores de tiempo completo con posgrado en el área actuarial.", acciones: "Gestionar 2 plazas de PTC y apoyar la titulación de posgrado.", responsable: "Coordinación de Actuaría", fechaInicio: "15/01/2025", fechaTermino: "30/11/2026", hitos: 3, esperadoAlCorte: 60 },
-  { id: "r2", numero: 2, categoria: "Plan de estudios", criterio: "4.2 Actualización del plan de estudios", texto: "Actualizar las asignaturas optativas para incluir ciencia de datos y modelos de riesgo.", acciones: "1) Diagnóstico con el Comité de Carrera. 2) Propuesta de 3 optativas nuevas. 3) Aprobación por el Consejo Técnico.", responsable: "Comité de Carrera", fechaInicio: "15/01/2025", fechaTermino: "30/06/2030", hitos: 4, esperadoAlCorte: 50, observacion: "Falta adjuntar el acta del Comité de Carrera que aprueba la actualización." },
-  { id: "r3", numero: 3, categoria: "Infraestructura", criterio: "9.1 Laboratorios y equipo", texto: "Equipar el laboratorio de cómputo con software estadístico licenciado.", acciones: "Adquirir licencias y capacitar a docentes.", responsable: "Secretaría Administrativa", fechaInicio: "01/02/2025", fechaTermino: "15/12/2026", hitos: 2, esperadoAlCorte: 100 },
+export const CICLO_ACTUARIA: CicloResumen = { id: "c-actuaria", licenciatura: "Actuaría", organismo: "CONAC", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28" };
+
+export const RECOMENDACIONES: RecomendacionPlan[] = [
+  {
+    id: "r1", numero: 1, categoriaId: "1", categoria: "Personal académico", indicador: "1.3 Perfil del profesorado",
+    descripcion: "Incrementar el número de profesores de tiempo completo con posgrado en el área actuarial.",
+    acciones: ["Gestionar 2 plazas de PTC y apoyar la titulación de posgrado."],
+    metas: [
+      { id: "m1", descripcion: "Contratación de 2 PTC", fechaCompromiso: "2026-11-30", porcentajeEsperado: 90 },
+    ],
+    areaResponsable: "Coordinación de Actuaría", fechaCumplimiento: "2026-12-15", observacion: null,
+  },
+  {
+    id: "r2", numero: 2, categoriaId: "3", categoria: "Plan de estudios", indicador: "4.2 Actualización del plan de estudios",
+    descripcion: "Actualizar las asignaturas optativas para incluir ciencia de datos y modelos de riesgo.",
+    acciones: ["1) Diagnóstico con el Comité de Carrera. 2) Propuesta de 3 optativas nuevas. 3) Aprobación por el Consejo Técnico."],
+    metas: [
+      { id: "m2", descripcion: "Diagnóstico con el Comité de Carrera", fechaCompromiso: "2025-06-30", porcentajeEsperado: 25 },
+      { id: "m3", descripcion: "Propuesta de 3 optativas nuevas", fechaCompromiso: "2025-12-15", porcentajeEsperado: 50 },
+      { id: "m4", descripcion: "Aprobación del Consejo Técnico", fechaCompromiso: "2026-06-30", porcentajeEsperado: 80 },
+    ],
+    areaResponsable: "Comité de Carrera", fechaCumplimiento: "2027-06-30", observacion: null,
+  },
+  {
+    id: "r3", numero: 3, categoriaId: "9", categoria: "Infraestructura", indicador: "9.1 Laboratorios y equipo",
+    descripcion: "Equipar el laboratorio de cómputo con software estadístico licenciado.",
+    acciones: ["Adquirir licencias y capacitar a docentes."],
+    metas: [{ id: "m5", descripcion: "Licencias instaladas en el laboratorio", fechaCompromiso: null, porcentajeEsperado: null }],
+    areaResponsable: null, fechaCumplimiento: null, observacion: null,
+  },
 ];
 
-export const HITOS: Hito[] = [
-  { id: "h1", recomendacionId: "r2", descripcion: "Diagnóstico con el Comité de Carrera", fechaCompromiso: "2025-06-30", porcentajeEsperado: 25, porcentajeReal: 25 },
-  { id: "h2", recomendacionId: "r2", descripcion: "Propuesta de 3 optativas nuevas", fechaCompromiso: "2025-12-15", porcentajeEsperado: 50, porcentajeReal: 40 },
-  { id: "h3", recomendacionId: "r2", descripcion: "Aprobación del Consejo Técnico", fechaCompromiso: "2026-06-30", porcentajeEsperado: 80, porcentajeReal: 0 },
-  { id: "h4", recomendacionId: "r2", descripcion: "Primera impartición de optativas", fechaCompromiso: "2027-01-15", porcentajeEsperado: 90, porcentajeReal: 0 },
+/** Plan de Actuaría en modo demostración (lo modifica src/lib/api.ts en memoria). */
+export const PLAN_ACTUARIA: PlanDetalle = {
+  ...PLANES[0]!,
+  vigenciaInicio: CICLO_ACTUARIA.vigenciaInicio,
+  vigenciaFin: CICLO_ACTUARIA.vigenciaFin,
+  editable: true,
+  recomendacionesDetalle: RECOMENDACIONES,
+  ultimaRevision: null,
+};
+
+export const METAS: Meta[] = [
+  { id: "m2", recomendacionId: "r2", descripcion: "Diagnóstico con el Comité de Carrera", fechaCompromiso: "2025-06-30", porcentajeEsperado: 25, porcentajeReal: 25 },
+  { id: "m3", recomendacionId: "r2", descripcion: "Propuesta de 3 optativas nuevas", fechaCompromiso: "2025-12-15", porcentajeEsperado: 50, porcentajeReal: 40 },
+  { id: "m4", recomendacionId: "r2", descripcion: "Aprobación del Consejo Técnico", fechaCompromiso: "2026-06-30", porcentajeEsperado: 80, porcentajeReal: 0 },
 ];
 
-export const PROXIMOS_HITOS = [
-  { hito: "Curso de ciencia de datos", recomendacion: "Recomendación 2", vence: "05/11/2026", real: 0, esperado: 30, estado: "Vencido" as const },
-  { hito: "Actualizar optativas", recomendacion: "Recomendación 2", vence: "20/11/2026", real: 40, esperado: 50, estado: "Pendiente" as const },
-  { hito: "Contratación de 2 PTC", recomendacion: "Recomendación 1", vence: "30/11/2026", real: 80, esperado: 90, estado: "Pendiente" as const },
-  { hito: "Reporte de licencias", recomendacion: "Recomendación 3", vence: "15/12/2026", real: 100, esperado: 100, estado: "Completado" as const },
+export const PROXIMAS_METAS = [
+  { meta: "Curso de ciencia de datos", recomendacion: "Recomendación 2", vence: "05/11/2026", real: 0, esperado: 30, estado: "Vencido" as const },
+  { meta: "Actualizar optativas", recomendacion: "Recomendación 2", vence: "20/11/2026", real: 40, esperado: 50, estado: "Pendiente" as const },
+  { meta: "Contratación de 2 PTC", recomendacion: "Recomendación 1", vence: "30/11/2026", real: 80, esperado: 90, estado: "Pendiente" as const },
+  { meta: "Reporte de licencias", recomendacion: "Recomendación 3", vence: "15/12/2026", real: 100, esperado: 100, estado: "Completado" as const },
 ];
 
 export const EVIDENCIAS_EN_PROCESO: Evidencia[] = [
-  { id: "e1", hitoId: "h2", nombreOriginal: "acta_comite_carrera.docx", tamano: "245 KB", estado: "CONVIRTIENDO", progreso: 65 },
-  { id: "e2", hitoId: "h2", nombreOriginal: "propuesta_optativas.xlsx", tamano: "88 KB", estado: "SUBIENDO", progreso: 30 },
-  { id: "e3", hitoId: "h2", nombreOriginal: "foto_reunion_comite.jpg", tamano: "1.2 MB", estado: "LISTO", progreso: 100 },
-  { id: "e4", hitoId: "h2", nombreOriginal: "presentacion_consejo.pptx", tamano: "4.8 MB", estado: "ERROR", progreso: 0, mensajeError: "No se pudo convertir. Guárdalo como PDF y reintenta." },
+  { id: "e1", metaId: "m3", nombreOriginal: "acta_comite_carrera.docx", tamano: "245 KB", estado: "CONVIRTIENDO", progreso: 65 },
+  { id: "e2", metaId: "m3", nombreOriginal: "propuesta_optativas.xlsx", tamano: "88 KB", estado: "SUBIENDO", progreso: 30 },
+  { id: "e3", metaId: "m3", nombreOriginal: "foto_reunion_comite.jpg", tamano: "1.2 MB", estado: "LISTO", progreso: 100 },
+  { id: "e4", metaId: "m3", nombreOriginal: "presentacion_consejo.pptx", tamano: "4.8 MB", estado: "ERROR", progreso: 0, mensajeError: "No se pudo convertir. Guárdalo como PDF y reintenta." },
 ];
 
-export const EVIDENCIAS_HITO = [
+export const EVIDENCIAS_META = [
   { nombre: "minuta_diagnostico.pdf", fecha: "02/07/2025" },
   { nombre: "encuesta_egresados.pdf", fecha: "28/06/2025" },
   { nombre: "lista_asistencia.pdf", fecha: "28/06/2025" },
 ];
 
 export const INFORMES: InformeResumen[] = [
-  { id: "actuaria-2026-2", licenciatura: "Actuaría", periodo: "2026-2", hitosReportados: 10, hitosTotales: 12, fechaEnvio: "10/11/2026", estado: "EN_REVISION" },
-  { id: "mac-2026-2", licenciatura: "Matemáticas Aplicadas y Comp.", periodo: "2026-2", hitosReportados: 8, hitosTotales: 11, fechaEnvio: "09/11/2026", estado: "EN_REVISION" },
-  { id: "derecho-2026-2", licenciatura: "Derecho", periodo: "2026-2", hitosReportados: 15, hitosTotales: 15, fechaEnvio: "28/10/2026", estado: "VALIDADO" },
-  { id: "rrii-2026-2", licenciatura: "Relaciones Internacionales", periodo: "2026-2", hitosReportados: 7, hitosTotales: 8, fechaEnvio: "25/10/2026", estado: "VALIDADO" },
-  { id: "economia-2026-2", licenciatura: "Economía", periodo: "2026-2", hitosReportados: 3, hitosTotales: 9, fechaEnvio: "20/10/2026", estado: "DEVUELTO" },
-  { id: "arquitectura-2026-2", licenciatura: "Arquitectura", periodo: "2026-2", hitosReportados: 11, hitosTotales: 14, fechaEnvio: "15/10/2026", estado: "VALIDADO" },
+  { id: "actuaria-2026-2", licenciatura: "Actuaría", periodo: "2026-2", metasReportadas: 10, metasTotales: 12, fechaEnvio: "10/11/2026", estado: "EN_REVISION" },
+  { id: "mac-2026-2", licenciatura: "Matemáticas Aplicadas y Comp.", periodo: "2026-2", metasReportadas: 8, metasTotales: 11, fechaEnvio: "09/11/2026", estado: "EN_REVISION" },
+  { id: "derecho-2026-2", licenciatura: "Derecho", periodo: "2026-2", metasReportadas: 15, metasTotales: 15, fechaEnvio: "28/10/2026", estado: "VALIDADO" },
+  { id: "rrii-2026-2", licenciatura: "Relaciones Internacionales", periodo: "2026-2", metasReportadas: 7, metasTotales: 8, fechaEnvio: "25/10/2026", estado: "VALIDADO" },
+  { id: "economia-2026-2", licenciatura: "Economía", periodo: "2026-2", metasReportadas: 3, metasTotales: 9, fechaEnvio: "20/10/2026", estado: "DEVUELTO" },
+  { id: "arquitectura-2026-2", licenciatura: "Arquitectura", periodo: "2026-2", metasReportadas: 11, metasTotales: 14, fechaEnvio: "15/10/2026", estado: "VALIDADO" },
 ];
 
 export const AVANCE_LICENCIATURAS: AvanceLicenciatura[] = [
@@ -112,13 +149,13 @@ export const AVANCE_LICENCIATURAS: AvanceLicenciatura[] = [
 ];
 
 export const INCUMPLIMIENTOS: Incumplimiento[] = [
-  { licenciatura: "Ingeniería Civil", hito: "Actualizar laboratorio de materiales", fechaCompromiso: "08/11/2026", esperado: 60, real: 20 },
-  { licenciatura: "Ingeniería Civil", hito: "Acervo bibliográfico", fechaCompromiso: "15/11/2026", esperado: 50, real: 25 },
-  { licenciatura: "Economía", hito: "Programa de tutorías", fechaCompromiso: "15/11/2026", esperado: 55, real: 30 },
-  { licenciatura: "Economía", hito: "Seguimiento de egresados", fechaCompromiso: "20/11/2026", esperado: 40, real: 10 },
-  { licenciatura: "Arquitectura", hito: "Movilidad estudiantil", fechaCompromiso: "22/11/2026", esperado: 60, real: 45 },
-  { licenciatura: "Pedagogía", hito: "Capacitación docente", fechaCompromiso: "30/11/2026", esperado: 65, real: 50 },
-  { licenciatura: "Matemáticas Aplicadas y Comp.", hito: "Certificación de laboratorios", fechaCompromiso: "30/11/2026", esperado: 70, real: 55 },
+  { licenciatura: "Ingeniería Civil", meta: "Actualizar laboratorio de materiales", fechaCompromiso: "08/11/2026", esperado: 60, real: 20 },
+  { licenciatura: "Ingeniería Civil", meta: "Acervo bibliográfico", fechaCompromiso: "15/11/2026", esperado: 50, real: 25 },
+  { licenciatura: "Economía", meta: "Programa de tutorías", fechaCompromiso: "15/11/2026", esperado: 55, real: 30 },
+  { licenciatura: "Economía", meta: "Seguimiento de egresados", fechaCompromiso: "20/11/2026", esperado: 40, real: 10 },
+  { licenciatura: "Arquitectura", meta: "Movilidad estudiantil", fechaCompromiso: "22/11/2026", esperado: 60, real: 45 },
+  { licenciatura: "Pedagogía", meta: "Capacitación docente", fechaCompromiso: "30/11/2026", esperado: 65, real: 50 },
+  { licenciatura: "Matemáticas Aplicadas y Comp.", meta: "Certificación de laboratorios", fechaCompromiso: "30/11/2026", esperado: 70, real: 55 },
 ];
 
 export const ATENCION: AtencionLicenciatura[] = [
@@ -141,8 +178,8 @@ export const DEVOLUCIONES: Devolucion[] = [
     mensaje: "Revisé el plan completo. Faltan evidencias de aprobación y hay fechas fuera del ciclo.",
     items: [
       { recomendacion: "Recomendación 2 · Plan de estudios", texto: "Falta adjuntar el acta del Comité de Carrera que aprueba la actualización.", atendida: false },
-      { recomendacion: "Recomendación 4 · Vinculación", texto: "La fecha de término (30/06/2030) está fuera del ciclo de acreditación.", atendida: false },
-      { recomendacion: "Recomendación 7 · Movilidad", texto: "Define al menos un hito con su % esperado.", atendida: false },
+      { recomendacion: "Recomendación 4 · Vinculación", texto: "La fecha de cumplimiento (30/06/2030) está fuera del ciclo de acreditación.", atendida: false },
+      { recomendacion: "Recomendación 7 · Movilidad", texto: "Define al menos una meta con su % esperado.", atendida: false },
     ],
   },
   {
@@ -152,17 +189,17 @@ export const DEVOLUCIONES: Devolucion[] = [
     autor: "Mtra. María González",
     mensaje: "Buen avance. Solo ajusta dos porcentajes.",
     items: [
-      { recomendacion: "Recomendación 1 · Personal académico", texto: "El % real del hito 2 no coincide con la evidencia.", atendida: true },
+      { recomendacion: "Recomendación 1 · Personal académico", texto: "El % real de la meta 2 no coincide con la evidencia.", atendida: true },
       { recomendacion: "Recomendación 3 · Infraestructura", texto: "Agrega la factura de las licencias.", atendida: true },
     ],
   },
 ];
 
 export const NOTIFICACIONES: Notificacion[] = [
-  { id: "n1", tipo: "VENCIMIENTO", titulo: "Hito vencido", descripcion: "“Curso de ciencia de datos” venció el 05/11/2026. Actualiza su avance.", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/hitos" },
-  { id: "n2", tipo: "HITO", titulo: "Hito próximo", descripcion: "“Actualizar optativas” vence en 9 días (50% esperado).", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/hitos" },
+  { id: "n1", tipo: "VENCIMIENTO", titulo: "Meta vencida", descripcion: "“Curso de ciencia de datos” venció el 05/11/2026. Actualiza su avance.", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/metas" },
+  { id: "n2", tipo: "META", titulo: "Meta próxima", descripcion: "“Actualizar optativas” vence en 9 días (50% esperado).", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/metas" },
   { id: "n3", tipo: "DEVOLUCION", titulo: "Plan devuelto", descripcion: "La Administradora devolvió tu plan con 3 observaciones.", fecha: "Ayer, 17:40", leida: false, enlace: "/licenciatura/observaciones" },
-  { id: "n4", tipo: "HITO", titulo: "Hito próximo", descripcion: "“Contratación de 2 PTC” vence en 19 días (90% esperado).", fecha: "08/11/2026", leida: true, enlace: "/licenciatura/hitos" },
+  { id: "n4", tipo: "META", titulo: "Meta próxima", descripcion: "“Contratación de 2 PTC” vence en 19 días (90% esperado).", fecha: "08/11/2026", leida: true, enlace: "/licenciatura/metas" },
   { id: "n5", tipo: "DEVOLUCION", titulo: "Informe validado", descripcion: "Tu informe 2026-1 fue validado sin observaciones.", fecha: "28/10/2026", leida: true, enlace: "/licenciatura/observaciones" },
 ];
 

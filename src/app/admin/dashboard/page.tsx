@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Button, LinkButton } from "@/components/ui/Button";
-import { BarraEsperada, Donut, Legend } from "@/components/ui/Charts";
+import { EstadosPlanesDonut, TablaPlanes } from "@/components/planes/PlanesDashboard";
+import { BarraEsperada, Legend } from "@/components/ui/Charts";
 import { Avatar, Badge, Card, DataTable, KpiCard, PageTitle } from "@/components/ui/Display";
 import { SelectField } from "@/components/ui/Field";
 import { AVANCE_LICENCIATURAS, LICENCIATURAS } from "@/lib/mock-data";
@@ -8,26 +9,19 @@ import type { EstadoBadge } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Dashboard global" };
 
-const ESTADOS = [
-  { label: "Validados", valor: 11, color: "var(--color-success)" },
-  { label: "En revisión", valor: 3, color: "var(--color-primary)" },
-  { label: "Devueltos", valor: 2, color: "var(--color-danger)" },
-  { label: "Borrador", valor: 2, color: "var(--color-gray-400)" },
-];
-
-type Vencimiento = { licenciatura: string; hito: string; fecha: string; estado: EstadoBadge };
+type Vencimiento = { licenciatura: string; meta: string; fecha: string; estado: EstadoBadge };
 const VENCIMIENTOS: Vencimiento[] = [
-  { licenciatura: "Ingeniería Civil", hito: "Actualizar laboratorio", fecha: "08/11/2026", estado: "Vencido" },
-  { licenciatura: "Economía", hito: "Programa de tutorías", fecha: "15/11/2026", estado: "Pendiente" },
-  { licenciatura: "Arquitectura", hito: "Seguimiento de egresados", fecha: "22/11/2026", estado: "Pendiente" },
-  { licenciatura: "Pedagogía", hito: "Capacitación docente", fecha: "30/11/2026", estado: "En revisión" },
+  { licenciatura: "Ingeniería Civil", meta: "Actualizar laboratorio", fecha: "08/11/2026", estado: "Vencido" },
+  { licenciatura: "Economía", meta: "Programa de tutorías", fecha: "15/11/2026", estado: "Pendiente" },
+  { licenciatura: "Arquitectura", meta: "Seguimiento de egresados", fecha: "22/11/2026", estado: "Pendiente" },
+  { licenciatura: "Pedagogía", meta: "Capacitación docente", fecha: "30/11/2026", estado: "En revisión" },
 ];
 
 const ACTIVIDAD = [
   ["JR", "Jorge Ramírez envió el plan de Actuaría", "Hace 25 min"],
   ["LM", "Laura Méndez subió 4 evidencias (Derecho)", "Hace 1 h"],
   ["MG", "Validaste el informe de Relaciones Int.", "Hoy, 09:12"],
-  ["PS", "Pablo Sánchez configuró 6 hitos (Economía)", "Ayer, 17:40"],
+  ["PS", "Pablo Sánchez configuró 6 metas (Economía)", "Ayer, 17:40"],
 ] as const;
 
 const DashboardGlobalPage = () => (
@@ -47,10 +41,10 @@ const DashboardGlobalPage = () => (
       <KpiCard tono="azul" titulo="Planes registrados" valor="18" detalle="de 22 licenciaturas" icon="documento" />
       <KpiCard tono="verde" titulo="Planes validados" valor="11" detalle="61% del total" icon="check" />
       <KpiCard tono="naranja" titulo="Por validar" valor="5" detalle="3 planes y 2 informes" icon="reloj" />
-      <KpiCard tono="rojo" titulo="Hitos vencidos" valor="7" detalle="en 4 licenciaturas" icon="alerta" />
+      <KpiCard tono="rojo" titulo="Metas vencidas" valor="7" detalle="en 4 licenciaturas" icon="alerta" />
     </div>
     <div className="row row--top row--responsive" style={{ gap: 24 }}>
-      <Card title="Avance real vs. esperado" subtitle="Cumplimiento de hitos por licenciatura" className="grow"
+      <Card title="Avance real vs. esperado" subtitle="Cumplimiento de metas por licenciatura" className="grow"
         actions={<div className="row" style={{ gap: 16 }}><Legend color="var(--color-primary)" label="Avance real" /><Legend color="var(--color-accent)" label="Esperado al corte" /></div>}>
         {AVANCE_LICENCIATURAS.map((a) => (
           <div key={a.licenciatura} className="row" style={{ gap: 16 }}>
@@ -61,22 +55,18 @@ const DashboardGlobalPage = () => (
           </div>
         ))}
       </Card>
-      <Card title="Estado de los planes" className="side-340">
-        <Donut segmentos={ESTADOS} centro="18" subtitulo="planes" />
-        <div className="stack" style={{ gap: 10 }}>
-          {ESTADOS.map((e) => <Legend key={e.label} color={e.color} label={e.label} valor={e.valor} />)}
-        </div>
-      </Card>
+      <EstadosPlanesDonut />
     </div>
+    <TablaPlanes vista="admin" />
     <div className="row row--top row--responsive" style={{ gap: 24 }}>
       <Card title="Vencimientos próximos" className="grow" actions={<LinkButton href="/admin/reportes/incumplimiento" variant="texto" icon="chevron-derecha">Ver reporte</LinkButton>}>
         <DataTable<Vencimiento>
           caption="Vencimientos próximos"
-          rowKey={(v) => v.hito}
+          rowKey={(v) => v.meta}
           rows={VENCIMIENTOS}
           columns={[
             { header: "Licenciatura", render: (v) => v.licenciatura },
-            { header: "Hito", render: (v) => v.hito },
+            { header: "Meta", render: (v) => v.meta },
             { header: "Fecha", width: 130, render: (v) => v.fecha },
             { header: "Estado", width: 150, render: (v) => <Badge estado={v.estado} /> },
           ]}

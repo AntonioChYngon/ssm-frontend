@@ -33,7 +33,7 @@ const InformesPage = () => (
       columns={[
         { header: "Licenciatura", render: (i) => <span className="t-medium">{i.licenciatura}</span> },
         { header: "Periodo", width: 120, render: (i) => i.periodo },
-        { header: "Hitos reportados", width: 170, render: (i) => `${i.hitosReportados} / ${i.hitosTotales}` },
+        { header: "Metas reportadas", width: 170, render: (i) => `${i.metasReportadas} / ${i.metasTotales}` },
         { header: "Fecha de envío", width: 160, render: (i) => i.fechaEnvio },
         { header: "Estado", width: 140, render: (i) => <Badge estado={ESTADO_DOCUMENTO_BADGE[i.estado]} /> },
         { header: "Acción", width: 140, render: (i) => i.estado === "EN_REVISION"
