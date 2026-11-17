@@ -35,6 +35,8 @@ export type Usuario = {
   ultimoAcceso?: string;
 };
 
+export type CoordinacionOpcion = { id: string; nombre: string; licenciaturaId: string; licenciatura: string };
+
 export type PlanResumen = {
   id: string;
   licenciatura: string;

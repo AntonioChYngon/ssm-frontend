@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Alert, Avatar, Badge, Card, PageTitle } from "@/components/ui/Display";
 import { Radio, TextField } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ChipGroup } from "@/components/ui/Interactive";
+import { cambiarContrasena } from "@/lib/api";
 import type { CanalNotificacion } from "@/lib/types";
 
 const DATOS: [IconName, string, string][] = [
@@ -24,15 +25,36 @@ const ACTIVIDAD: [IconName, string, string][] = [
 
 const PerfilPage = () => {
   const [canal, setCanal] = useState<CanalNotificacion>("AMBOS");
+  const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [mensaje, setMensaje] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
   const reglas = [
     { texto: "Al menos 8 caracteres", ok: nueva.length >= 8 },
     { texto: "Una letra mayúscula", ok: /[A-ZÁÉÍÓÚÑ]/.test(nueva) },
     { texto: "Un número", ok: /\d/.test(nueva) },
   ];
   const coincide = confirmacion.length > 0 && confirmacion === nueva;
-  const valida = reglas.every((r) => r.ok) && coincide;
+  const valida = actual.length > 0 && reglas.every((r) => r.ok) && coincide;
+
+  const guardarContrasena = async (evento: FormEvent<HTMLFormElement>) => {
+    evento.preventDefault();
+    if (!valida || cargando) return;
+    setCargando(true);
+    setMensaje(null);
+    try {
+      await cambiarContrasena(actual, nueva);
+      setMensaje({ tipo: "exito", texto: "La contraseña se actualizó correctamente." });
+      setActual("");
+      setNueva("");
+      setConfirmacion("");
+    } catch (error) {
+      setMensaje({ tipo: "error", texto: error instanceof Error ? error.message : "No se pudo actualizar la contraseña." });
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     <>
@@ -62,22 +84,25 @@ const PerfilPage = () => {
         </div>
         <div className="stack grow" style={{ gap: 24 }}>
           <Card title="Cambiar contraseña" subtitle="Usa una contraseña que no utilices en otros sitios." style={{ gap: 18 }}>
-            <TextField label="Contraseña actual" icon="candado" type="password" autoComplete="current-password" />
-            <div className="grid-2" style={{ gap: 16 }}>
-              <TextField label="Nueva contraseña" icon="candado" type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
-              <TextField label="Confirmar nueva contraseña" icon="candado" type="password" autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)}
-                error={confirmacion && !coincide ? "Las contraseñas no coinciden." : undefined} />
-            </div>
-            <div className="stack" style={{ gap: 6 }}>
-              <span className="t-small t-medium t-muted">Tu nueva contraseña debe tener:</span>
-              {reglas.map((r) => (
-                <span key={r.texto} className={["row t-small", r.ok ? "t-success" : "t-danger"].join(" ")} style={{ gap: 8 }}><Icon name={r.ok ? "check" : "cerrar"} size={18} />{r.texto}</span>
-              ))}
-            </div>
-            <div className="row" style={{ justifyContent: "flex-end", gap: 12 }}>
-              <Button variant="contorno">Cancelar</Button>
-              <Button icon="check" disabled={!valida}>Guardar contraseña</Button>
-            </div>
+            <form className="stack" style={{ gap: 18 }} onSubmit={guardarContrasena}>
+              <TextField label="Contraseña actual" icon="candado" type="password" autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />
+              <div className="grid-2" style={{ gap: 16 }}>
+                <TextField label="Nueva contraseña" icon="candado" type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} />
+                <TextField label="Confirmar nueva contraseña" icon="candado" type="password" autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)}
+                  error={confirmacion && !coincide ? "Las contraseñas no coinciden." : undefined} />
+              </div>
+              <div className="stack" style={{ gap: 6 }}>
+                <span className="t-small t-medium t-muted">Tu nueva contraseña debe tener:</span>
+                {reglas.map((r) => (
+                  <span key={r.texto} className={["row t-small", r.ok ? "t-success" : "t-danger"].join(" ")} style={{ gap: 8 }}><Icon name={r.ok ? "check" : "cerrar"} size={18} />{r.texto}</span>
+                ))}
+              </div>
+              {mensaje && <Alert tipo={mensaje.tipo}>{mensaje.texto}</Alert>}
+              <div className="row" style={{ justifyContent: "flex-end", gap: 12 }}>
+                <Button variant="contorno" type="button" onClick={() => { setActual(""); setNueva(""); setConfirmacion(""); setMensaje(null); }}>Cancelar</Button>
+                <Button type="submit" icon="check" disabled={!valida || cargando}>{cargando ? "Guardando…" : "Guardar contraseña"}</Button>
+              </div>
+            </form>
           </Card>
           <Card title="Historial de actividad" actions={<ChipGroup label="Tipo de actividad" options={["Accesos", "Modificaciones"]} />} style={{ gap: 0 }}>
             {ACTIVIDAD.map(([icon, texto, cuando]) => (
