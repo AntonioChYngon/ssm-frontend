@@ -6,7 +6,7 @@ import { Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Di
 import { SelectField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
 import { subirEvidencia } from "@/lib/api";
-import { EVIDENCIAS_EN_PROCESO, EVIDENCIAS_HITO } from "@/lib/mock-data";
+import { EVIDENCIAS_EN_PROCESO, EVIDENCIAS_META } from "@/lib/mock-data";
 import type { Evidencia } from "@/lib/types";
 
 const PERMITIDOS = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png"];
@@ -38,10 +38,10 @@ const EvidenciasPage = () => {
     const nuevos: Evidencia[] = Array.from(lista).map((file): Evidencia => {
       const valido = PERMITIDOS.includes(extension(file.name));
       const pesado = file.size > MAX_MB * 1024 * 1024;
-      if (valido && !pesado) void subirEvidencia("h2", file);
+      if (valido && !pesado) void subirEvidencia("m3", file);
       return {
         id: crypto.randomUUID(),
-        hitoId: "h2",
+        metaId: "m3",
         nombreOriginal: file.name,
         tamano: tamanoLegible(file.size),
         estado: valido && !pesado ? "SUBIENDO" : "ERROR",
@@ -63,14 +63,14 @@ const EvidenciasPage = () => {
       <PageTitle
         crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Carga de evidencias" }]}
         title="Carga de evidencias"
-        subtitle="Sube los documentos que respaldan cada hito. Los convertimos a PDF automáticamente."
+        subtitle="Sube los documentos que respaldan cada meta. Los convertimos a PDF automáticamente."
         actions={<Button variant="contorno" icon="descargar">Exportar expediente PDF</Button>}
       />
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow" style={{ gap: 20 }}>
           <div className="grid-2" style={{ gap: 16 }}>
             <SelectField label="Recomendación *" options={["2 · Plan de estudios", "1 · Personal académico", "3 · Infraestructura"]} />
-            <SelectField label="Hito *" options={["Propuesta de 3 optativas nuevas", "Diagnóstico con el Comité de Carrera"]} />
+            <SelectField label="Meta *" options={["Propuesta de 3 optativas nuevas", "Diagnóstico con el Comité de Carrera"]} />
           </div>
           <div
             className={["dropzone", arrastrando ? "dropzone--over" : ""].join(" ")}
@@ -114,8 +114,8 @@ const EvidenciasPage = () => {
           </Card>
         </div>
         <aside className="stack side-340">
-          <Card title="Evidencias de este hito" actions={<Badge estado="Completado">{EVIDENCIAS_HITO.length} PDF</Badge>} style={{ gap: 12 }}>
-            {EVIDENCIAS_HITO.map((e) => (
+          <Card title="Evidencias de esta meta" actions={<Badge estado="Completado">{EVIDENCIAS_META.length} PDF</Badge>} style={{ gap: 12 }}>
+            {EVIDENCIAS_META.map((e) => (
               <div key={e.nombre} className="row" style={{ gap: 12 }}>
                 <span className="kpi__icon" style={{ borderRadius: 8, background: "var(--color-danger-bg)", color: "var(--color-danger-text)" }}><Icon name="documento" size={20} /></span>
                 <div className="grow" style={{ minWidth: 0 }}>
@@ -127,7 +127,7 @@ const EvidenciasPage = () => {
             ))}
           </Card>
           <Card style={{ padding: 16, gap: 0 }}>
-            <span className="t-small t-medium t-muted">Hito: Aprobación del Consejo Técnico</span>
+            <span className="t-small t-medium t-muted">Meta: Aprobación del Consejo Técnico</span>
             <EmptyState titulo="Aún no hay evidencias" mensaje="Cuando el Consejo Técnico apruebe la propuesta, sube aquí el acta." action={<Button icon="subir" onClick={() => input.current?.click()}>Subir evidencias</Button>} />
           </Card>
         </aside>

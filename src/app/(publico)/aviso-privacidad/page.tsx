@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Aviso de privacidad" };
 const SECCIONES = [
   ["Responsable del tratamiento", "La Facultad de Estudios Superiores Acatlán de la Universidad Nacional Autónoma de México es responsable del tratamiento de los datos personales que se recaban a través del Sistema de Seguimiento de Mejora (SSM)."],
   ["Datos personales que recabamos", "Nombre completo, correo electrónico institucional, rol asignado en el sistema, licenciatura de adscripción y registros de actividad (fecha y hora de acceso, cambios realizados)."],
-  ["Finalidades", "Administrar las cuentas de acceso, registrar y dar seguimiento a los planes de mejora continua, enviar notificaciones sobre hitos y vencimientos, y mantener una bitácora de auditoría de los cambios."],
+  ["Finalidades", "Administrar las cuentas de acceso, registrar y dar seguimiento a los planes de mejora continua, enviar notificaciones sobre metas y vencimientos, y mantener una bitácora de auditoría de los cambios."],
   ["Transferencias", "Sus datos no serán transferidos a terceros, salvo las excepciones previstas en la legislación aplicable en materia de protección de datos personales."],
   ["Derechos ARCO", "Puede ejercer sus derechos de acceso, rectificación, cancelación y oposición ante la Unidad de Transparencia de la UNAM, por los medios que esta disponga."],
   ["Medidas de seguridad", "El sistema aplica controles de acceso por rol, validación de dominio institucional y registro de auditoría, conforme a los lineamientos de seguridad de la información de la UNAM."],

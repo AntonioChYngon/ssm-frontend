@@ -4,16 +4,26 @@
 export type Rol = "ADMINISTRADOR" | "CAPTURA" | "AUXILIAR";
 export type EstadoDocumento = "BORRADOR" | "EN_REVISION" | "DEVUELTO" | "VALIDADO";
 export type EstadoEvidencia = "SUBIENDO" | "CONVIRTIENDO" | "LISTO" | "ERROR";
-export type TipoNotificacion = "VENCIMIENTO" | "HITO" | "DEVOLUCION";
+export type TipoNotificacion = "VENCIMIENTO" | "META" | "DEVOLUCION" | "PLAN";
 export type CanalNotificacion = "CORREO" | "IN_APP" | "AMBOS";
 
-export type EstadoBadge = "Completado" | "Validado" | "Pendiente" | "En revisión" | "Devuelto" | "Vencido" | "Borrador" | "Nuevo";
+export type EstadoBadge = "Completado" | "Validado" | "Pendiente" | "En revisión" | "En validación" | "Devuelto" | "Vencido" | "Borrador" | "Nuevo";
 
 export const ESTADO_DOCUMENTO_BADGE: Record<EstadoDocumento, EstadoBadge> = {
   BORRADOR: "Borrador",
   EN_REVISION: "En revisión",
   DEVUELTO: "Devuelto",
   VALIDADO: "Validado",
+};
+
+/** Estados del Plan de Mejora: mismos códigos que version_plan.estado (CHECK ck_plan_estado). */
+export type EstadoPlan = "BORRADOR" | "EN_REVISION" | "APROBADO" | "DEVUELTO";
+
+export const ESTADO_PLAN_BADGE: Record<EstadoPlan, EstadoBadge> = {
+  BORRADOR: "Borrador",
+  EN_REVISION: "En validación",
+  APROBADO: "Validado",
+  DEVUELTO: "Devuelto",
 };
 
 export const ROL_LABEL: Record<Rol, string> = {
@@ -35,33 +45,65 @@ export type Usuario = {
   ultimoAcceso?: string;
 };
 
+/** HU-04 · GET /planes. Una fila por ciclo con su versión más reciente. */
 export type PlanResumen = {
   id: string;
+  cicloId: string;
   licenciatura: string;
   organismo: string;
   ciclo: string;
   recomendaciones: number;
   avance: number;
-  estado: EstadoDocumento;
+  estado: EstadoPlan;
   actualizado: string;
 };
 
-export type Recomendacion = {
+/** Meta de una recomendación. fechaCompromiso y porcentajeEsperado se llenan en la Configuración de Metas. */
+export type MetaPlan = {
   id: string;
-  numero: number;
-  categoria: string;
-  criterio: string;
-  texto: string;
-  acciones: string;
-  responsable: string;
-  fechaInicio: string;
-  fechaTermino: string;
-  hitos: number;
-  esperadoAlCorte: number;
-  observacion?: string;
+  descripcion: string;
+  /** AAAA-MM-DD */
+  fechaCompromiso: string | null;
+  porcentajeEsperado: number | null;
 };
 
-export type Hito = {
+/** Recomendación del plan, en el orden de captura: Categoría, Indicador, Recomendación, Acciones, Metas, Área, Fecha. */
+export type RecomendacionPlan = {
+  id: string;
+  numero: number;
+  categoriaId: string;
+  categoria: string;
+  indicador: string;
+  descripcion: string;
+  /** Acciones para atender la recomendación */
+  acciones: string[];
+  metas: MetaPlan[];
+  areaResponsable: string | null;
+  /** AAAA-MM-DD */
+  fechaCumplimiento: string | null;
+  /** Observación del Administrador en la última devolución. */
+  observacion: string | null;
+};
+
+export type RevisionResumen = { decision: "APROBADO" | "DEVUELTO"; comentario: string | null; revisor: string; fecha: string };
+
+/** HU-04 · GET /planes/:id */
+export type PlanDetalle = PlanResumen & {
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  /** true en BORRADOR o DEVUELTO */
+  editable: boolean;
+  recomendacionesDetalle: RecomendacionPlan[];
+  ultimaRevision: RevisionResumen | null;
+};
+
+export type CicloResumen = { id: string; licenciatura: string; organismo: string; vigenciaInicio: string; vigenciaFin: string };
+
+/** HU-04 · GET /planes/mio (plan null si aún no se captura nada en el ciclo vigente) */
+export type MiPlan = { ciclo: CicloResumen; plan: PlanDetalle | null };
+
+/** Meta con su avance real (seguimiento). */
+export type Meta = {
   id: string;
   recomendacionId: string;
   descripcion: string;
@@ -72,7 +114,7 @@ export type Hito = {
 
 export type Evidencia = {
   id: string;
-  hitoId: string;
+  metaId: string;
   nombreOriginal: string;
   tamano: string;
   estado: EstadoEvidencia;
@@ -85,8 +127,8 @@ export type InformeResumen = {
   id: string;
   licenciatura: string;
   periodo: string;
-  hitosReportados: number;
-  hitosTotales: number;
+  metasReportadas: number;
+  metasTotales: number;
   fechaEnvio: string;
   estado: EstadoDocumento;
 };
@@ -127,7 +169,7 @@ export type EventoBitacora = {
 
 export type Incumplimiento = {
   licenciatura: string;
-  hito: string;
+  meta: string;
   fechaCompromiso: string;
   esperado: number;
   real: number;
@@ -161,18 +203,30 @@ export type CambiarAsignacionPayload = { rol: Exclude<Rol, "ADMINISTRADOR">; coo
 export type ItemCatalogo = { id: string; nombre: string };
 export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
 
-/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones (indicadorId o indicador nuevo) */
-export type NuevaRecomendacionPayload = {
+/**
+ * HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) · PUT /recomendaciones/:id (existente).
+ * Obligatorios en borrador: categoriaId, indicador y descripcion. Los demás se exigen al enviar a validación.
+ */
+export type RecomendacionPayload = {
   categoriaId: string;
-  indicadorId?: string;
-  indicador?: string;
+  /** Texto abierto */
+  indicador: string;
   descripcion: string;
-  acciones: string[];
-  metas: string[];
-  areaIds: string[];
+  /** Acciones para atender la recomendación */
+  acciones?: string[];
+  metas?: string[];
+  /** Texto abierto */
+  areaResponsable?: string;
   /** AAAA-MM-DD, dentro de la vigencia del ciclo */
-  fechaCumplimiento: string;
-  etiquetaFecha?: string;
+  fechaCumplimiento?: string;
 };
+
+/** HU-12 · PUT /recomendaciones/:id/metas (Configuración de Metas). Sin id = meta nueva. */
+export type GuardarMetasPayload = {
+  metas: { id?: string; descripcion: string; fechaCompromiso: string; porcentajeEsperado: number }[];
+};
+
+/** HU-05 · POST /planes/:id/devolver */
+export type DevolverPlanPayload = { motivo: string; observaciones: { recomendacionId: string; comentario: string }[] };
 
 // HU-15 · GET /reportes/atencion?licenciaturaId= → AtencionLicenciatura[] (definido arriba)

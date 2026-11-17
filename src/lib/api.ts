@@ -6,11 +6,15 @@ import type {
   CambiarAsignacionPayload,
   Catalogos,
   CrearUsuarioPayload,
-  Hito,
+  DevolverPlanPayload,
+  GuardarMetasPayload,
   InformeResumen,
-  NuevaRecomendacionPayload,
+  MiPlan,
   Notificacion,
+  PlanDetalle,
   PlanResumen,
+  RecomendacionPayload,
+  RecomendacionPlan,
   Rol,
   Sesion,
   Usuario,
@@ -103,30 +107,22 @@ export const rutaInicio = (rol: Rol) => (rol === "ADMINISTRADOR" ? "/admin/dashb
 /** GET /usuarios */
 export const listarUsuarios = async (): Promise<Usuario[]> => (USE_MOCKS ? mock.USUARIOS : request<Usuario[]>("/usuarios"));
 
-/** GET /planes */
-export const listarPlanes = async (): Promise<PlanResumen[]> => (USE_MOCKS ? mock.PLANES : request<PlanResumen[]>("/planes"));
-
-/** POST /planes/:id/validar  ·  POST /planes/:id/devolver */
-export const resolverPlan = async (id: string, accion: "validar" | "devolver", motivo?: string): Promise<void> => {
-  if (!USE_MOCKS) await request(`/planes/${id}/${accion}`, { method: "POST", body: JSON.stringify({ motivo }) });
-};
-
 /** GET /informes */
 export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? mock.INFORMES : request<InformeResumen[]>("/informes"));
-
-/** PUT /recomendaciones/:id/hitos */
-export const guardarHitos = async (recomendacionId: string, hitos: Omit<Hito, "id" | "recomendacionId" | "porcentajeReal">[]): Promise<void> => {
-  if (!USE_MOCKS) await request(`/recomendaciones/${recomendacionId}/hitos`, { method: "PUT", body: JSON.stringify(hitos) });
-};
 
 /** GET /notificaciones */
 export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MOCKS ? mock.NOTIFICACIONES : request<Notificacion[]>("/notificaciones"));
 
+/** PATCH /notificaciones/:id/leida */
+export const marcarNotificacionLeida = async (id: string): Promise<void> => {
+  if (!USE_MOCKS) await request(`/notificaciones/${id}/leida`, { method: "PATCH" });
+};
+
 /** POST /evidencias (multipart). El backend convierte a PDF y devuelve el estado. */
-export const subirEvidencia = async (hitoId: string, archivo: File): Promise<void> => {
+export const subirEvidencia = async (metaId: string, archivo: File): Promise<void> => {
   if (USE_MOCKS) return;
   const body = new FormData();
-  body.append("hitoId", hitoId);
+  body.append("metaId", metaId);
   body.append("archivo", archivo);
   const token = window.sessionStorage.getItem(CLAVE_TOKEN);
   const response = await fetch(`${API_URL}/evidencias`, { method: "POST", body, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
@@ -177,10 +173,145 @@ export const obtenerCatalogos = async (): Promise<Catalogos> => {
   };
 };
 
-/** HU-04 · POST /ciclos/:cicloId/plan/recomendaciones */
-export const agregarRecomendacion = async (cicloId: string, datos: NuevaRecomendacionPayload): Promise<void> => {
-  if (!USE_MOCKS) await request(`/ciclos/${cicloId}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
-  else await esperar();
+// ----- HU-04 / HU-05 / HU-12 · Plan de Mejora -----
+// En modo demostración el plan de Actuaría vive en memoria: se puede capturar, enviar, validar y devolver.
+
+const clonar = <T>(valor: T): T => JSON.parse(JSON.stringify(valor)) as T;
+let planDemo: PlanDetalle = clonar(mock.PLAN_ACTUARIA);
+const resumenDemo = (): PlanResumen => {
+  const { vigenciaInicio: _i, vigenciaFin: _f, editable: _e, recomendacionesDetalle, ultimaRevision: _r, ...resumen } = planDemo;
+  return { ...resumen, recomendaciones: recomendacionesDetalle.length };
+};
+const actualizarDemo = (cambios: Partial<PlanDetalle>) => {
+  planDemo = { ...planDemo, ...cambios };
+  planDemo.editable = planDemo.estado === "BORRADOR" || planDemo.estado === "DEVUELTO";
+  planDemo.recomendacionesDetalle = planDemo.recomendacionesDetalle.map((r, i) => ({ ...r, numero: i + 1 }));
+  planDemo.recomendaciones = planDemo.recomendacionesDetalle.length;
+  return clonar(planDemo);
+};
+const exigirEditableDemo = () => {
+  if (!planDemo.editable) throw new ApiError(409, "El plan está en validación o ya fue validado; no se puede editar.");
+};
+
+/** HU-04 · GET /planes: Administrador = todos (incluidos borradores); Captura y Auxiliar = su licenciatura. */
+export const listarPlanes = async (): Promise<PlanResumen[]> => {
+  if (!USE_MOCKS) return request<PlanResumen[]>("/planes");
+  await esperar(150);
+  const usuario = leerUsuarioSesion();
+  const todos = mock.PLANES.map((p) => (p.id === planDemo.id ? resumenDemo() : p));
+  return usuario && usuario.rol !== "ADMINISTRADOR" ? todos.filter((p) => p.licenciatura === (usuario.licenciatura ?? "Actuaría")) : todos;
+};
+
+/** HU-04 · GET /planes/:id (también alimenta la Configuración de Metas) */
+export const obtenerPlan = async (id: string): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/planes/${encodeURIComponent(id)}`);
+  await esperar(150);
+  if (id === planDemo.id) return clonar(planDemo);
+  const resumen = mock.PLANES.find((p) => p.id === id);
+  if (!resumen) throw new ApiError(404, "Plan de mejora no encontrado.");
+  return {
+    ...resumen,
+    vigenciaInicio: "2024-11-28",
+    vigenciaFin: "2029-11-28",
+    editable: resumen.estado === "BORRADOR" || resumen.estado === "DEVUELTO",
+    recomendacionesDetalle: clonar(mock.RECOMENDACIONES),
+    ultimaRevision: null,
+  };
+};
+
+/** HU-04 · GET /planes/mio: ciclo vigente de mi licenciatura y su plan (null si aún no hay captura). */
+export const obtenerMiPlan = async (): Promise<MiPlan> => {
+  if (!USE_MOCKS) return request<MiPlan>("/planes/mio");
+  await esperar(150);
+  return { ciclo: mock.CICLO_ACTUARIA, plan: clonar(planDemo) };
+};
+
+/** HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) o PUT /recomendaciones/:id (existente). */
+export const guardarRecomendacion = async (cicloId: string, datos: RecomendacionPayload, recomendacionId?: string): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) {
+    return recomendacionId
+      ? request<PlanDetalle>(`/recomendaciones/${recomendacionId}`, { method: "PUT", body: JSON.stringify(datos) })
+      : request<PlanDetalle>(`/ciclos/${cicloId}/plan/recomendaciones`, { method: "POST", body: JSON.stringify(datos) });
+  }
+  await esperar();
+  exigirEditableDemo();
+  const anterior = planDemo.recomendacionesDetalle.find((r) => r.id === recomendacionId);
+  const metasPrevias = [...(anterior?.metas ?? [])];
+  const metas = (datos.metas ?? []).map((descripcion) => {
+    const i = metasPrevias.findIndex((m) => m.descripcion === descripcion);
+    return i >= 0 ? metasPrevias.splice(i, 1)[0]! : { id: `m-${crypto.randomUUID()}`, descripcion, fechaCompromiso: null, porcentajeEsperado: null };
+  });
+  const rec: RecomendacionPlan = {
+    id: recomendacionId ?? `r-${crypto.randomUUID()}`,
+    numero: 0,
+    categoriaId: datos.categoriaId,
+    categoria: mock.CATEGORIAS[Number(datos.categoriaId) - 1] ?? "",
+    indicador: datos.indicador,
+    descripcion: datos.descripcion,
+    acciones: datos.acciones ?? [],
+    metas,
+    areaResponsable: datos.areaResponsable ?? null,
+    fechaCumplimiento: datos.fechaCumplimiento ?? null,
+    observacion: anterior?.observacion ?? null,
+  };
+  const recomendacionesDetalle = anterior
+    ? planDemo.recomendacionesDetalle.map((r) => (r.id === recomendacionId ? rec : r))
+    : [...planDemo.recomendacionesDetalle, rec];
+  return actualizarDemo({ recomendacionesDetalle, actualizado: new Date().toLocaleDateString("es-MX") });
+};
+
+/** HU-04 · DELETE /recomendaciones/:id */
+export const eliminarRecomendacion = async (recomendacionId: string): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/recomendaciones/${recomendacionId}`, { method: "DELETE" });
+  await esperar();
+  exigirEditableDemo();
+  return actualizarDemo({ recomendacionesDetalle: planDemo.recomendacionesDetalle.filter((r) => r.id !== recomendacionId) });
+};
+
+/** HU-04 · POST /planes/:id/enviar: pasa el plan a En validación y avisa al Administrador. */
+export const enviarPlan = async (id: string): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/planes/${id}/enviar`, { method: "POST" });
+  await esperar();
+  exigirEditableDemo();
+  if (!planDemo.recomendacionesDetalle.length) throw new ApiError(400, "Agrega al menos una recomendación antes de enviar el plan.");
+  const incompletas = planDemo.recomendacionesDetalle
+    .filter((r) => !r.acciones.length || !r.metas.length || !r.areaResponsable || !r.fechaCumplimiento)
+    .map((r) => r.numero);
+  if (incompletas.length) throw new ApiError(400, `Completa las recomendaciones ${incompletas.join(", ")} antes de enviar el plan.`);
+  return actualizarDemo({ estado: "EN_REVISION" });
+};
+
+/** HU-05 · POST /planes/:id/validar */
+export const validarPlan = async (id: string, comentario?: string): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/planes/${id}/validar`, { method: "POST", body: JSON.stringify({ comentario }) });
+  await esperar();
+  if (id !== planDemo.id) return obtenerPlan(id);
+  return actualizarDemo({ estado: "APROBADO", ultimaRevision: { decision: "APROBADO", comentario: comentario ?? null, revisor: "María González", fecha: new Date().toLocaleDateString("es-MX") } });
+};
+
+/** HU-05 · POST /planes/:id/devolver: motivo general obligatorio y observaciones por recomendación. */
+export const devolverPlan = async (id: string, datos: DevolverPlanPayload): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/planes/${id}/devolver`, { method: "POST", body: JSON.stringify(datos) });
+  await esperar();
+  if (id !== planDemo.id) return obtenerPlan(id);
+  const obs = new Map(datos.observaciones.map((o) => [o.recomendacionId, o.comentario]));
+  return actualizarDemo({
+    estado: "DEVUELTO",
+    recomendacionesDetalle: planDemo.recomendacionesDetalle.map((r) => ({ ...r, observacion: obs.get(r.id) ?? null })),
+    ultimaRevision: { decision: "DEVUELTO", comentario: datos.motivo, revisor: "María González", fecha: new Date().toLocaleDateString("es-MX") },
+  });
+};
+
+/** HU-12 · PUT /recomendaciones/:id/metas (Configuración de Metas) */
+export const guardarMetas = async (recomendacionId: string, datos: GuardarMetasPayload): Promise<PlanDetalle> => {
+  if (!USE_MOCKS) return request<PlanDetalle>(`/recomendaciones/${recomendacionId}/metas`, { method: "PUT", body: JSON.stringify(datos) });
+  await esperar();
+  exigirEditableDemo();
+  return actualizarDemo({
+    recomendacionesDetalle: planDemo.recomendacionesDetalle.map((r) =>
+      r.id === recomendacionId ? { ...r, metas: datos.metas.map((m) => ({ ...m, id: m.id ?? `m-${crypto.randomUUID()}` })) } : r,
+    ),
+  });
 };
 
 /** HU-15 · GET /reportes/atencion?licenciaturaId= */

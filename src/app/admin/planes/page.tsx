@@ -1,26 +1,50 @@
 "use client";
 
-import { useState } from "react";
-import { Button, LinkButton } from "@/components/ui/Button";
-import { Badge, DataTable, PageTitle, Progress } from "@/components/ui/Display";
+import { useEffect, useState } from "react";
+import { LinkButton } from "@/components/ui/Button";
+import { Alert, Badge, DataTable, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { ChipGroup } from "@/components/ui/Interactive";
-import { PLANES } from "@/lib/mock-data";
-import { ESTADO_DOCUMENTO_BADGE, type EstadoDocumento, type PlanResumen } from "@/lib/types";
+import { ApiError, listarPlanes } from "@/lib/api";
+import { ESTADO_PLAN_BADGE, type EstadoPlan, type PlanResumen } from "@/lib/types";
 
-const FILTROS: Record<string, EstadoDocumento | null> = {
-  "Todos (18)": null,
-  "En revisión (3)": "EN_REVISION",
-  "Devueltos (2)": "DEVUELTO",
-  "Validados (11)": "VALIDADO",
-  "Borrador (2)": "BORRADOR",
-};
+const FILTROS: { label: string; estado: EstadoPlan | null }[] = [
+  { label: "Todos", estado: null },
+  { label: "En validación", estado: "EN_REVISION" },
+  { label: "Devueltos", estado: "DEVUELTO" },
+  { label: "Validados", estado: "APROBADO" },
+  { label: "Borrador", estado: "BORRADOR" },
+];
+
+const TODOS_CICLOS = "Todos los ciclos";
+const TODOS_ORGANISMOS = "Todos";
 
 const PlanesPage = () => {
-  const [filtro, setFiltro] = useState("Todos (18)");
+  const [planes, setPlanes] = useState<PlanResumen[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [estado, setEstado] = useState<EstadoPlan | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const estado = FILTROS[filtro] ?? null;
-  const visibles = PLANES.filter((p) => (!estado || p.estado === estado) && `${p.licenciatura} ${p.organismo}`.toLowerCase().includes(busqueda.toLowerCase()));
+  const [ciclo, setCiclo] = useState(TODOS_CICLOS);
+  const [organismo, setOrganismo] = useState(TODOS_ORGANISMOS);
+
+  useEffect(() => {
+    listarPlanes()
+      .then(setPlanes)
+      .catch((e) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los planes."))
+      .finally(() => setCargando(false));
+  }, []);
+
+  const opciones = FILTROS.map((f) => `${f.label} (${f.estado ? planes.filter((p) => p.estado === f.estado).length : planes.length})`);
+  const ciclos = [TODOS_CICLOS, ...new Set(planes.map((p) => p.ciclo))];
+  const organismos = [TODOS_ORGANISMOS, ...new Set(planes.map((p) => p.organismo))];
+  const visibles = planes.filter(
+    (p) =>
+      (!estado || p.estado === estado) &&
+      (ciclo === TODOS_CICLOS || p.ciclo === ciclo) &&
+      (organismo === TODOS_ORGANISMOS || p.organismo === organismo) &&
+      `${p.licenciatura} ${p.organismo}`.toLowerCase().includes(busqueda.toLowerCase()),
+  );
 
   return (
     <>
@@ -28,36 +52,37 @@ const PlanesPage = () => {
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Planes de mejora" }]}
         title="Planes de mejora"
         subtitle="Todos los planes registrados por las licenciaturas. Selecciona uno para revisarlo y validarlo."
-        actions={<Button variant="contorno" icon="descargar">Exportar</Button>}
       />
       <div className="row row--end row--responsive">
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Licenciatura u organismo acreditador" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
-        <div style={{ width: 200 }}><SelectField label="Ciclo" options={["2024 – 2029", "2019 – 2024"]} /></div>
-        <div style={{ width: 240 }}><SelectField label="Organismo acreditador" options={["Todos", "CONAC", "CONAED", "CONACE", "CONAIC", "CACEI", "ANPADEH", "ACCECISO"]} /></div>
+        <div style={{ width: 200 }}><SelectField label="Ciclo" options={ciclos} value={ciclo} onChange={(e) => setCiclo(e.target.value)} /></div>
+        <div style={{ width: 240 }}><SelectField label="Organismo acreditador" options={organismos} value={organismo} onChange={(e) => setOrganismo(e.target.value)} /></div>
       </div>
-      <ChipGroup label="Filtrar por estado" options={Object.keys(FILTROS)} onChange={setFiltro} />
-      <DataTable<PlanResumen>
-        caption="Planes de mejora"
-        rows={visibles}
-        rowKey={(p) => p.id}
-        columns={[
-          { header: "Licenciatura", render: (p) => <span className="t-medium">{p.licenciatura}</span> },
-          { header: "Organismo", width: 120, render: (p) => p.organismo },
-          { header: "Recomend.", width: 110, render: (p) => p.recomendaciones },
-          { header: "Avance", width: 190, render: (p) => <Progress value={p.avance} width={110} /> },
-          { header: "Estado", width: 140, render: (p) => <Badge estado={ESTADO_DOCUMENTO_BADGE[p.estado]} /> },
-          { header: "Actualizado", width: 130, render: (p) => p.actualizado },
-          { header: "Acción", width: 140, render: (p) => p.estado === "EN_REVISION"
-            ? <LinkButton href={`/admin/planes/${p.id}`} icon="check">Revisar</LinkButton>
-            : <LinkButton href={`/admin/planes/${p.id}`} variant="contorno" icon="ver">Ver</LinkButton> },
-        ]}
-      />
-      <div className="row">
-        <span className="t-small t-muted">Mostrando {visibles.length} de 18 planes</span>
-        <span className="spacer" />
-        <Button variant="contorno" icon="flecha-izquierda" disabled>Anterior</Button>
-        <Button variant="contorno" icon="chevron-derecha">Siguiente</Button>
-      </div>
+      {/* key: vuelve a montar los chips cuando llegan los conteos (ChipGroup guarda su selección internamente). */}
+      <ChipGroup key={cargando ? "cargando" : "listo"} label="Filtrar por estado" options={opciones} onChange={(o) => setEstado(FILTROS[opciones.indexOf(o)]?.estado ?? null)} />
+      {error && <Alert tipo="error">{error}</Alert>}
+      {cargando ? (
+        <p className="t-muted">Cargando planes…</p>
+      ) : (
+        <DataTable<PlanResumen>
+          caption="Planes de mejora"
+          rows={visibles}
+          rowKey={(p) => p.id}
+          columns={[
+            { header: "Licenciatura", render: (p) => <span className="t-medium">{p.licenciatura}</span> },
+            { header: "Organismo", width: 120, render: (p) => p.organismo },
+            { header: "Ciclo", width: 110, render: (p) => p.ciclo },
+            { header: "Recomend.", width: 110, render: (p) => p.recomendaciones },
+            { header: "Avance", width: 190, render: (p) => <Progress value={p.avance} width={110} /> },
+            { header: "Estado", width: 150, render: (p) => <Badge estado={ESTADO_PLAN_BADGE[p.estado]} /> },
+            { header: "Actualizado", width: 130, render: (p) => p.actualizado },
+            { header: "Acción", width: 140, render: (p) => p.estado === "EN_REVISION"
+              ? <LinkButton href={`/admin/planes/${p.id}`} icon="check">Revisar</LinkButton>
+              : <LinkButton href={`/admin/planes/${p.id}`} variant="contorno" icon="ver">Ver</LinkButton> },
+          ]}
+        />
+      )}
+      <span className="t-small t-muted">Mostrando {visibles.length} de {planes.length} planes</span>
     </>
   );
 };

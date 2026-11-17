@@ -54,7 +54,7 @@ const PerfilPage = () => {
             ))}
             <Alert tipo="info">Para cambiar tu rol o licenciatura, contacta al Administrador.</Alert>
           </Card>
-          <Card title="¿Cómo quieres recibir avisos?" subtitle="Vencimientos, hitos próximos y devoluciones." style={{ gap: 4 }}>
+          <Card title="¿Cómo quieres recibir avisos?" subtitle="Vencimientos, metas próximas y devoluciones." style={{ gap: 4 }}>
             <Radio name="canal" label="Solo por correo" checked={canal === "CORREO"} onChange={() => setCanal("CORREO")} />
             <Radio name="canal" label="Solo en la aplicación (In-App)" checked={canal === "IN_APP"} onChange={() => setCanal("IN_APP")} />
             <Radio name="canal" label="Correo e In-App (recomendado)" checked={canal === "AMBOS"} onChange={() => setCanal("AMBOS")} />

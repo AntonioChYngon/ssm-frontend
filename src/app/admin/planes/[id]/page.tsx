@@ -1,14 +1,9 @@
-import { notFound } from "next/navigation";
-import { PLANES } from "@/lib/mock-data";
 import { ValidacionPlan } from "./ValidacionPlan";
 
-export const generateStaticParams = () => PLANES.map((p) => ({ id: p.id }));
-
+// El plan se consulta en el navegador (GET /planes/:id) con la sesión del Administrador.
 const ValidacionPlanPage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const plan = PLANES.find((p) => p.id === id);
-  if (!plan) notFound();
-  return <ValidacionPlan plan={plan} />;
+  return <ValidacionPlan id={id} />;
 };
 
 export default ValidacionPlanPage;

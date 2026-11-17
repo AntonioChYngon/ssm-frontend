@@ -6,7 +6,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 const BENEFICIOS: { icon: IconName; texto: string }[] = [
   { icon: "documento", texto: "Planes de mejora por licenciatura" },
   { icon: "carpeta", texto: "Evidencias convertidas a PDF" },
-  { icon: "grafica", texto: "Seguimiento de hitos y avance" },
+  { icon: "grafica", texto: "Seguimiento de metas y avance" },
 ];
 
 export const SplitLayout = ({ titulo, texto, children }: { titulo: string; texto: string; children: ReactNode }) => (
