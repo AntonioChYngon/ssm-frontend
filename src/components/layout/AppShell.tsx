@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/Display";
 import { Icon } from "@/components/ui/Icon";
 import { navPorRol } from "@/lib/nav";
-import { cerrarSesion as borrarSesion, leerUsuarioSesion, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
+import { actualizarUsuarioSesion, cerrarSesion as borrarSesion, leerUsuarioSesion, listarNotificaciones, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
 import { ROL_LABEL, type Rol, type Usuario } from "@/lib/types";
 import { NotificationPanel } from "./NotificationPanel";
 
@@ -38,23 +38,35 @@ const usePerfil = (area: Area) => {
 
   useEffect(() => {
     const guardado = leerUsuarioSesion();
-    if (!guardado && usaMocks()) {
-      setPerfil(PERFILES_DEMO[area === "admin" ? "admin" : "licenciatura"]);
+    if (usaMocks()) {
+      if (!guardado) {
+        setPerfil(PERFILES_DEMO[area === "admin" ? "admin" : "licenciatura"]);
+        return;
+      }
+      const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (guardado.rol === "ADMINISTRADOR");
+      if (enAreaIncorrecta) {
+        router.replace(rutaInicio(guardado.rol));
+        return;
+      }
+      setPerfil(perfilDesdeUsuario(guardado));
       return;
     }
     if (!guardado) {
       router.replace("/login");
       return;
     }
-    // "comun" (Mi perfil) sirve a todos los roles; las demás áreas son exclusivas.
-    const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (guardado.rol === "ADMINISTRADOR");
-    if (enAreaIncorrecta) {
-      router.replace(rutaInicio(guardado.rol));
-      return;
-    }
-    setPerfil(perfilDesdeUsuario(guardado));
+    // Confirma el rol actual con el servidor antes de decidir si la ruta corresponde.
+    // Así no se redirige según un rol viejo que quedó guardado en sessionStorage.
     obtenerUsuarioActual()
-      .then((usuario) => setPerfil(perfilDesdeUsuario(usuario)))
+      .then((usuario) => {
+        actualizarUsuarioSesion(usuario);
+        const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (usuario.rol === "ADMINISTRADOR");
+        if (enAreaIncorrecta) {
+          router.replace(rutaInicio(usuario.rol));
+          return;
+        }
+        setPerfil(perfilDesdeUsuario(usuario));
+      })
       .catch(() => {
         borrarSesion();
         router.replace("/login");
@@ -75,7 +87,17 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
   const pathname = usePathname();
   const router = useRouter();
   const [panelAbierto, setPanelAbierto] = useState(false);
+  const [notificacionesNuevas, setNotificacionesNuevas] = useState(0);
   const perfil = usePerfil(area);
+
+  useEffect(() => {
+    if (!perfil) return;
+    let vigente = true;
+    listarNotificaciones()
+      .then((items) => { if (vigente) setNotificacionesNuevas(items.filter((n) => !n.leida).length); })
+      .catch(() => { if (vigente) setNotificacionesNuevas(0); });
+    return () => { vigente = false; };
+  }, [perfil?.rol]);
 
   // Mientras se confirma la sesión no se muestra contenido protegido.
   if (!perfil) {
@@ -99,9 +121,9 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
           <div className="t-small" style={{ color: "var(--color-accent)" }}>FES Acatlán · UNAM</div>
         </div>
         <span className="spacer" />
-        <button type="button" className="app-header__btn" aria-label="Notificaciones (3 nuevas)" onClick={() => setPanelAbierto(true)}>
+        <button type="button" className="app-header__btn" aria-label={`Notificaciones (${notificacionesNuevas} nuevas)`} onClick={() => setPanelAbierto(true)}>
           <Icon name="campana" size={22} />
-          <span className="app-header__count">3</span>
+          {notificacionesNuevas > 0 && <span className="app-header__count">{notificacionesNuevas > 99 ? "99+" : notificacionesNuevas}</span>}
         </button>
         <Link href="/perfil" className="app-header__btn" aria-label="Configuración y perfil"><Icon name="engrane" size={22} /></Link>
         <div className="row" style={{ gap: 12, paddingLeft: 8 }}>
@@ -136,7 +158,7 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
         <main id="contenido" className="main">{children}</main>
       </div>
 
-      <NotificationPanel open={panelAbierto} onClose={() => setPanelAbierto(false)} />
+      <NotificationPanel open={panelAbierto} onClose={() => setPanelAbierto(false)} onUnreadCountChange={setNotificacionesNuevas} />
     </>
   );
 };

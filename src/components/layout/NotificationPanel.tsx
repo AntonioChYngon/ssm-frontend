@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
-import { Badge } from "@/components/ui/Display";
+import { Alert, Badge } from "@/components/ui/Display";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Radio } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ChipGroup, Drawer } from "@/components/ui/Interactive";
-import { listarNotificaciones, marcarNotificacionLeida } from "@/lib/api";
+import { ApiError, listarNotificaciones, marcarNotificacionLeida, marcarTodasLasNotificacionesLeidas } from "@/lib/api";
 import type { CanalNotificacion, Notificacion, TipoNotificacion } from "@/lib/types";
 
 const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; filtro: string }> = {
@@ -17,27 +17,60 @@ const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; f
   PLAN: { icon: "documento", bg: "var(--color-primary-tint)", fg: "var(--color-primary)", filtro: "Planes" },
 };
 
-export const NotificationPanel = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+export const NotificationPanel = ({ open, onClose, onUnreadCountChange }: { open: boolean; onClose: () => void; onUnreadCountChange?: (count: number) => void }) => {
   const [items, setItems] = useState<Notificacion[]>([]);
   const [filtro, setFiltro] = useState("Todas");
   const [canal, setCanal] = useState<CanalNotificacion>("AMBOS");
+  const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [intentosCarga, setIntentosCarga] = useState(0);
 
   useEffect(() => {
     if (!open) return;
-    listarNotificaciones().then(setItems).catch(() => setItems([]));
-  }, [open]);
+    let vigente = true;
+    setCargando(true);
+    setErrorCarga(null);
+    listarNotificaciones()
+      .then((avisos) => { if (vigente) setItems(avisos); })
+      .catch((error: unknown) => {
+        if (!vigente) return;
+        setErrorCarga(error instanceof ApiError
+          ? error.message
+          : "No pudimos cargar las notificaciones. Revisa tu conexión e inténtalo de nuevo.");
+      })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [open, intentosCarga]);
 
   const visibles = items.filter((n) => filtro === "Todas" || TIPO[n.tipo]?.filtro === filtro);
   const nuevas = items.filter((n) => !n.leida).length;
-  // El backend solo registra "leída"; desmarcar es local.
-  const alternarLeida = (id: string) => {
+
+  useEffect(() => onUnreadCountChange?.(nuevas), [nuevas, onUnreadCountChange]);
+  const alternarLeida = async (id: string) => {
     const aviso = items.find((n) => n.id === id);
-    if (aviso && !aviso.leida) void marcarNotificacionLeida(id).catch(() => undefined);
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, leida: !n.leida } : n)));
+    if (!aviso || aviso.leida) return;
+    setErrorAccion(null);
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, leida: true } : n)));
+    try {
+      await marcarNotificacionLeida(id);
+    } catch (error) {
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, leida: false } : n)));
+      setErrorAccion(error instanceof Error ? error.message : "No se pudo marcar la notificación como leída.");
+    }
   };
-  const marcarTodas = () => {
-    items.filter((n) => !n.leida).forEach((n) => void marcarNotificacionLeida(n.id).catch(() => undefined));
+  const marcarTodas = async () => {
+    const pendientes = items.filter((n) => !n.leida).map((n) => n.id);
+    if (pendientes.length === 0) return;
+    setErrorAccion(null);
     setItems((prev) => prev.map((n) => ({ ...n, leida: true })));
+    try {
+      await marcarTodasLasNotificacionesLeidas();
+    } catch (error) {
+      const ids = new Set(pendientes);
+      setItems((prev) => prev.map((n) => ids.has(n.id) ? { ...n, leida: false } : n));
+      setErrorAccion(error instanceof Error ? error.message : "No se pudieron marcar todas como leídas.");
+    }
   };
 
   return (
@@ -57,13 +90,23 @@ export const NotificationPanel = ({ open, onClose }: { open: boolean; onClose: (
         <span className="spacer" />
         <Button variant="texto" icon="check" onClick={marcarTodas}>Marcar todas como leídas</Button>
       </div>
+      {errorAccion && <div style={{ padding: "8px 24px" }}><Alert tipo="error">{errorAccion}</Alert></div>}
+      {errorCarga && (
+        <div className="stack" role="alert" style={{ padding: "8px 24px", gap: 8 }}>
+          <Alert tipo="error">{errorCarga}</Alert>
+          <Button variant="contorno" onClick={() => setIntentosCarga((anterior) => anterior + 1)} disabled={cargando}>
+            Reintentar
+          </Button>
+        </div>
+      )}
       <ul style={{ listStyle: "none", margin: 0, padding: 0, overflowY: "auto", flex: 1, borderTop: "1px solid var(--color-gray-200)" }}>
-        {visibles.length === 0 && <li className="t-small t-muted" style={{ padding: "16px 24px" }}>No tienes notificaciones.</li>}
+        {cargando && items.length === 0 && <li className="t-small t-muted" role="status" style={{ padding: "16px 24px" }}>Cargando notificaciones…</li>}
+        {!cargando && !errorCarga && visibles.length === 0 && <li className="t-small t-muted" style={{ padding: "16px 24px" }}>No tienes notificaciones.</li>}
         {visibles.map((n) => {
           const tipo = TIPO[n.tipo] ?? TIPO.PLAN;
           return (
             <li key={n.id} className={["notif", n.leida ? "" : "notif--unread"].join(" ")}>
-              <input type="checkbox" aria-label={`Marcar “${n.titulo}” como leída`} checked={n.leida} onChange={() => alternarLeida(n.id)} style={{ width: 22, height: 22, accentColor: "var(--color-primary)" }} />
+              <input type="checkbox" aria-label={`Marcar “${n.titulo}” como leída`} checked={n.leida} onChange={() => void alternarLeida(n.id)} style={{ width: 22, height: 22, accentColor: "var(--color-primary)" }} />
               <span className="kpi__icon" style={{ width: 40, height: 40, background: tipo.bg, color: tipo.fg }}><Icon name={tipo.icon} size={20} /></span>
               <div className="grow">
                 <div className="t-medium">{n.titulo}</div>

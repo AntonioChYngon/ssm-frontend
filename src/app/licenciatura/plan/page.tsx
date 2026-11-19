@@ -5,10 +5,12 @@ import { Button, IconButton, LinkButton } from "@/components/ui/Button";
 import { Alert, Badge, Card, DataTable, EmptyState, PageTitle } from "@/components/ui/Display";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/Interactive";
-import { ApiError, eliminarRecomendacion, enviarPlan, guardarRecomendacion, obtenerCatalogos, obtenerMiPlan } from "@/lib/api";
+import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
+import { descargarReportePlan, eliminarRecomendacion, enviarPlan, guardarRecomendacion, obtenerCatalogos, obtenerMiPlan, usaMocks } from "@/lib/api";
 import { ESTADO_PLAN_BADGE, type ItemCatalogo, type MiPlan, type PlanDetalle, type RecomendacionPayload, type RecomendacionPlan } from "@/lib/types";
 
 const SIN_CATEGORIA = "Selecciona una categoría";
+const SIN_AREA = "Selecciona un área responsable";
 
 type Formulario = {
   categoriaId: string;
@@ -45,7 +47,7 @@ const tieneContenido = (f: Formulario) =>
 const estaCompleta = (r: RecomendacionPlan) => r.acciones.length > 0 && r.metas.length > 0 && Boolean(r.areaResponsable?.trim()) && Boolean(r.fechaCumplimiento);
 
 /** "Guardar borrador" exige Categoría, Indicador y Recomendación; "Enviar a validación" exige los 7 campos. */
-const validar = (f: Formulario, completo: boolean, vigencia: { inicio: string; fin: string }): Errores => {
+const validar = (f: Formulario, completo: boolean, vigencia: { inicio: string; fin: string }, areas: ItemCatalogo[]): Errores => {
   const e: Errores = {};
   if (!f.categoriaId) e.categoriaId = "Elige una categoría.";
   if (f.indicador.trim().length < 3) e.indicador = "Escribe el indicador (al menos 3 caracteres).";
@@ -56,7 +58,7 @@ const validar = (f: Formulario, completo: boolean, vigencia: { inicio: string; f
   if (completo) {
     if (!f.acciones.trim()) e.acciones = "Escribe las acciones para atender la recomendación.";
     if (!metasLimpias(f.metas).length) e.metas = "Agrega al menos una meta.";
-    if (!f.areaResponsable.trim()) e.areaResponsable = "Escribe el área responsable.";
+    if (!areas.some((area) => area.nombre === f.areaResponsable)) e.areaResponsable = "Selecciona un área responsable del catálogo.";
     if (!f.fechaCumplimiento) e.fechaCumplimiento = "Elige la fecha de cumplimiento.";
   }
   return e;
@@ -72,11 +74,30 @@ const aPayload = (f: Formulario): RecomendacionPayload => ({
   fechaCumplimiento: f.fechaCumplimiento || undefined,
 });
 
-const mensajeDe = (error: unknown) => (error instanceof ApiError ? error.message : "No pudimos completar la operación. Intenta de nuevo.");
+const mensajeDe = (error: unknown) => (error instanceof Error ? error.message : "No pudimos completar la operación. Intenta de nuevo.");
+
+const escaparHtml = (valor: string) => valor.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+const imprimirReporteDemo = (plan: PlanDetalle) => {
+  const popup = window.open("", "_blank", "width=1200,height=800");
+  if (!popup) throw new Error("Permite las ventanas emergentes para generar el reporte de demostración.");
+  const encabezados = ["N.º", "Categoría", "Indicador", "Recomendación", "Acciones", "Metas", "Área responsable", "Fecha límite"];
+  const celdas = plan.recomendacionesDetalle.map((r) => [
+    String(r.numero), r.categoria, r.indicador, r.descripcion,
+    r.acciones.join("\n") || "—",
+    r.metas.map((m) => `${m.descripcion}${m.fechaCompromiso ? ` · ${m.fechaCompromiso}` : ""}${m.porcentajeEsperado === null ? "" : ` · ${m.porcentajeEsperado}%`}`).join("\n") || "—",
+    r.areaResponsable ?? "—", r.fechaCumplimiento ?? "—",
+  ]);
+  popup.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Reporte del plan</title><style>
+    @page{size:landscape;margin:12mm}body{font:12px Arial,sans-serif;color:#243444}h1{color:#073766;margin:0 0 6px}p{margin:4px 0 16px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #bfcbd5;padding:6px;vertical-align:top;white-space:pre-wrap;overflow-wrap:anywhere}th{background:#073766;color:#fff}tr{break-inside:avoid}thead{display:table-header-group}
+    </style></head><body><h1>Reporte del plan de mejora</h1><p>${escaparHtml(`${plan.licenciatura} · Ciclo ${plan.ciclo} · ${plan.organismo} · ${plan.estado}`)}</p><table><thead><tr>${encabezados.map((h) => `<th>${escaparHtml(h)}</th>`).join("")}</tr></thead><tbody>${celdas.map((fila) => `<tr>${fila.map((v) => `<td>${escaparHtml(v)}</td>`).join("")}</tr>`).join("")}</tbody></table><script>window.onload=()=>window.print()</script></body></html>`);
+  popup.document.close();
+};
 
 const CapturaPlanPage = () => {
   const [miPlan, setMiPlan] = useState<MiPlan | null>(null);
   const [categorias, setCategorias] = useState<ItemCatalogo[]>([]);
+  const [areas, setAreas] = useState<ItemCatalogo[]>([]);
   const [cargando, setCargando] = useState(true);
   const [form, setForm] = useState<Formulario>(VACIO);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -90,6 +111,7 @@ const CapturaPlanPage = () => {
       .then(([plan, catalogos]) => {
         setMiPlan(plan);
         setCategorias(catalogos.categorias);
+        setAreas(catalogos.areas);
       })
       .catch((error) => setAviso({ tipo: "error", texto: mensajeDe(error) }))
       .finally(() => setCargando(false));
@@ -118,7 +140,7 @@ const CapturaPlanPage = () => {
   /** Guarda la recomendación del formulario. Devuelve el plan actualizado o null si hubo errores. */
   const guardarFormulario = async (completo: boolean): Promise<PlanDetalle | null> => {
     if (!ciclo) return null;
-    const e = validar(form, completo, vigencia);
+    const e = validar(form, completo, vigencia, areas);
     setErrores(e);
     if (Object.keys(e).length) {
       setAviso({ tipo: "error", texto: "Revisa los campos marcados antes de continuar." });
@@ -202,6 +224,32 @@ const CapturaPlanPage = () => {
     }
   };
 
+  const generarReporte = async () => {
+    if (!plan) return;
+    setOcupado(true);
+    setAviso(null);
+    try {
+      if (usaMocks()) {
+        imprimirReporteDemo(plan);
+      } else {
+        const archivo = await descargarReportePlan(plan.id);
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement("a");
+        enlace.href = url;
+        enlace.download = `Plan_${plan.licenciatura}_${plan.ciclo.replace(/[–\s]+/g, "-")}.pdf`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        URL.revokeObjectURL(url);
+      }
+      setAviso({ tipo: "exito", texto: usaMocks() ? "Se abrió el reporte para imprimir o guardarlo como PDF." : "Reporte PDF descargado." });
+    } catch (error) {
+      setAviso({ tipo: "error", texto: mensajeDe(error) });
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   const categoriaNombre = categorias.find((c) => c.id === form.categoriaId)?.nombre ?? SIN_CATEGORIA;
 
   return (
@@ -213,12 +261,14 @@ const CapturaPlanPage = () => {
         actions={
           <>
             {plan && <Badge estado={ESTADO_PLAN_BADGE[plan.estado]} />}
+            {plan && <Button variant="contorno" icon="descargar" onClick={() => void generarReporte()} disabled={ocupado || cargando}>Generar reporte PDF</Button>}
             <Button variant="contorno" icon="check" onClick={guardarBorrador} disabled={!editable || ocupado || cargando || !ciclo}>Guardar borrador</Button>
             <Button icon="enviar" onClick={pedirEnvio} disabled={!editable || ocupado || cargando || !ciclo}>Enviar a validación</Button>
           </>
         }
       />
 
+      {usaMocks() && <Alert tipo="info">Modo demostración: los cambios del plan se guardan en memoria y no en MariaDB. Para validar persistencia, inicia el frontend con el backend conectado.</Alert>}
       {aviso && <Alert tipo={aviso.tipo}>{aviso.texto}</Alert>}
       {plan?.estado === "DEVUELTO" && plan.ultimaRevision && (
         <Alert tipo="advertencia">
@@ -228,6 +278,9 @@ const CapturaPlanPage = () => {
       )}
       {plan?.estado === "EN_REVISION" && <Alert tipo="info">El plan está en validación. No se puede editar hasta que la Administración lo revise.</Alert>}
       {plan?.estado === "APROBADO" && <Alert tipo="exito">El plan fue validado y quedó bloqueado para edición.</Alert>}
+      {plan && (plan.revisiones?.length || plan.ultimaRevision) ? (
+        <HistorialRevisiones revisiones={plan.revisiones?.length ? plan.revisiones : [plan.ultimaRevision!]} recomendaciones={plan.recomendacionesDetalle} />
+      ) : null}
 
       {editable && ciclo && (
         <Card
@@ -267,7 +320,10 @@ const CapturaPlanPage = () => {
             </div>
           </fieldset>
 
-          <TextField label="Área responsable *" value={form.areaResponsable} onChange={(e) => cambiar("areaResponsable", e.target.value)} maxLength={250} error={errores.areaResponsable} />
+          <SelectField label="Área responsable *" options={[SIN_AREA, ...areas.map((a) => a.nombre)]}
+            value={form.areaResponsable || SIN_AREA}
+            onChange={(e) => cambiar("areaResponsable", e.target.value === SIN_AREA ? "" : e.target.value)}
+            error={errores.areaResponsable} help={areas.length ? undefined : "No hay áreas activas en el catálogo."} />
           <div style={{ maxWidth: 320 }}>
             <TextField label="Fecha de cumplimiento *" icon="calendario" type="date" min={vigencia.inicio} max={vigencia.fin}
               value={form.fechaCumplimiento} onChange={(e) => cambiar("fechaCumplimiento", e.target.value)} error={errores.fechaCumplimiento} />

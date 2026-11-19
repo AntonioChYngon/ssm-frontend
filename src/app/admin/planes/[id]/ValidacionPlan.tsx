@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/ui/Button";
+import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { Alert, Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { TextAreaField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
@@ -99,6 +100,9 @@ export const ValidacionPlan = ({ id }: { id: string }) => {
           {plan.ultimaRevision.comentario ? ` ${plan.ultimaRevision.comentario}` : ""}
         </Alert>
       )}
+      {(plan.revisiones?.length || plan.ultimaRevision) ? (
+        <HistorialRevisiones revisiones={plan.revisiones?.length ? plan.revisiones : [plan.ultimaRevision!]} recomendaciones={plan.recomendacionesDetalle} />
+      ) : null}
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow">
           {recs.length === 0 && <EmptyState titulo="El plan no tiene recomendaciones" mensaje="La licenciatura aún no captura recomendaciones." icon="documento" />}
