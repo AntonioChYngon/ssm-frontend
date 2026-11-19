@@ -14,6 +14,11 @@ type Aviso = { tipo: "exito" | "error"; texto: string };
 const SIN_PLAN = "Selecciona un plan de mejora";
 
 const fechaLegible = (iso: string) => iso.split("-").reverse().join("/");
+const moverFecha = (iso: string, dias: number) => {
+  const fecha = new Date(`${iso}T00:00:00Z`);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+};
 const etiquetaPlan = (p: PlanResumen) => `${p.licenciatura} · Ciclo ${p.ciclo} · ${ESTADO_PLAN_BADGE[p.estado]}`;
 
 const filasDe = (r: RecomendacionPlan): Fila[] =>
@@ -26,7 +31,7 @@ const validar = (filas: Fila[], desde: string, hasta: string): Errores[] =>
     const e: Errores = {};
     if (!f.descripcion.trim()) e.descripcion = "Describe la meta.";
     if (!f.fecha) e.fecha = "Elige una fecha.";
-    else if (f.fecha < desde || f.fecha > hasta) e.fecha = `Debe estar entre ${fechaLegible(desde)} y ${fechaLegible(hasta)}.`;
+    else if (f.fecha <= desde || f.fecha >= hasta) e.fecha = `Debe ser posterior al ${fechaLegible(desde)} y anterior al ${fechaLegible(hasta)}.`;
     const anterior = filas[i - 1];
     if (f.fecha && anterior?.fecha && f.fecha <= anterior.fecha) e.fecha = `Debe ser posterior a la meta ${i} (${fechaLegible(anterior.fecha)}).`;
     const pct = Number(f.porcentaje);
@@ -39,7 +44,8 @@ const MetasRecomendacion = ({ plan, recomendacion, onGuardado }: { plan: PlanDet
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [guardando, setGuardando] = useState(false);
   const hasta = recomendacion.fechaCumplimiento ?? plan.vigenciaFin;
-  const errores = validar(filas, plan.vigenciaInicio, hasta);
+  const desde = plan.fechaMinimaMeta ?? plan.vigenciaInicio;
+  const errores = validar(filas, desde, hasta);
   const conError = errores.filter((e) => Object.keys(e).length > 0).length;
   const soloLectura = !plan.editable;
 
@@ -91,7 +97,7 @@ const MetasRecomendacion = ({ plan, recomendacion, onGuardado }: { plan: PlanDet
                   <TextField label="Descripción de la meta *" value={f.descripcion} disabled={soloLectura} maxLength={2000}
                     onChange={(ev) => actualizar(f.key, "descripcion", ev.target.value)} error={soloLectura ? undefined : e.descripcion} />
                   <div className="grid-2" style={{ gap: 16 }}>
-                    <TextField label="Fecha compromiso *" icon="calendario" type="date" min={plan.vigenciaInicio} max={hasta} value={f.fecha} disabled={soloLectura}
+                    <TextField label="Fecha compromiso *" icon="calendario" type="date" min={moverFecha(desde, 1)} max={moverFecha(hasta, -1)} value={f.fecha} disabled={soloLectura}
                       onChange={(ev) => actualizar(f.key, "fecha", ev.target.value)} error={soloLectura ? undefined : e.fecha} />
                     <TextField label="% esperado *" inputMode="numeric" value={f.porcentaje} disabled={soloLectura}
                       onChange={(ev) => actualizar(f.key, "porcentaje", ev.target.value)} error={soloLectura ? undefined : e.porcentaje} />
@@ -183,7 +189,7 @@ const MetasPage = () => {
         <>
           <Alert tipo={plan.editable ? "info" : "advertencia"}>
             {plan.editable
-              ? "Cada meta necesita una fecha compromiso y un % esperado entre 1 y 99. Las fechas deben ir en orden y no pasar la fecha de cumplimiento de la recomendación. El 100% se alcanza al cumplir la recomendación."
+              ? `Cada meta necesita una fecha compromiso posterior al ${fechaLegible(plan.fechaMinimaMeta ?? plan.vigenciaInicio)} y anterior a la fecha de cumplimiento, además de un % esperado entre 1 y 99. El 100% se alcanza al cumplir la recomendación.`
               : `El plan está ${ESTADO_PLAN_BADGE[plan.estado].toLowerCase()}: sus metas solo se pueden consultar.`}
           </Alert>
           {plan.recomendacionesDetalle.length === 0 ? (

@@ -51,6 +51,12 @@ export const leerUsuarioSesion = (): Usuario | null => {
   }
 };
 
+export const actualizarUsuarioSesion = (usuario: Usuario) => {
+  if (typeof window !== "undefined" && window.sessionStorage.getItem(CLAVE_TOKEN)) {
+    window.sessionStorage.setItem(CLAVE_USUARIO, JSON.stringify(usuario));
+  }
+};
+
 export const cerrarSesion = () => {
   window.sessionStorage.removeItem(CLAVE_TOKEN);
   window.sessionStorage.removeItem(CLAVE_USUARIO);
@@ -83,13 +89,25 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return (await response.json()) as T;
 };
 
+const requestBlob = async (path: string): Promise<Blob> => {
+  const token = typeof window === "undefined" ? null : window.sessionStorage.getItem(CLAVE_TOKEN);
+  const response = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string | string[] };
+    const mensaje = Array.isArray(body.message) ? body.message[0] : body.message;
+    throw new ApiError(response.status, mensaje ?? "No pudimos descargar el reporte.");
+  }
+  return response.blob();
+};
+
 /** POST /auth/login */
 export const login = async (correo: string, contrasena: string): Promise<Sesion> => {
   if (!esCorreoInstitucional(correo)) {
     throw new ApiError(400, MENSAJE_DOMINIO);
   }
   if (!USE_MOCKS) return request<Sesion>("/auth/login", { method: "POST", body: JSON.stringify({ correo, contrasena }) });
-  const usuario = mock.USUARIOS.find((u) => u.correo === correo.trim().toLowerCase()) ?? mock.USUARIOS[1];
+  const usuario = mock.USUARIOS.find((u) => u.correo === correo.trim().toLowerCase());
+  if (!usuario) throw new ApiError(401, "La cuenta no está en los datos de demostración. Conecta el backend o usa una cuenta de muestra.");
   return { usuario, token: "mock-token" };
 };
 
@@ -116,6 +134,11 @@ export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MO
 /** PATCH /notificaciones/:id/leida */
 export const marcarNotificacionLeida = async (id: string): Promise<void> => {
   if (!USE_MOCKS) await request(`/notificaciones/${id}/leida`, { method: "PATCH" });
+};
+
+/** PATCH /notificaciones/leidas */
+export const marcarTodasLasNotificacionesLeidas = async (): Promise<void> => {
+  if (!USE_MOCKS) await request("/notificaciones/leidas", { method: "PATCH" });
 };
 
 /** POST /evidencias (multipart). El backend convierte a PDF y devuelve el estado. */
@@ -224,6 +247,12 @@ export const obtenerMiPlan = async (): Promise<MiPlan> => {
   if (!USE_MOCKS) return request<MiPlan>("/planes/mio");
   await esperar(150);
   return { ciclo: mock.CICLO_ACTUARIA, plan: clonar(planDemo) };
+};
+
+/** HU-04 · GET /planes/:id/pdf */
+export const descargarReportePlan = async (id: string): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, "El reporte PDF del servidor requiere conectar el backend.");
+  return requestBlob(`/planes/${encodeURIComponent(id)}/pdf`);
 };
 
 /** HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) o PUT /recomendaciones/:id (existente). */

@@ -85,7 +85,14 @@ export type RecomendacionPlan = {
   observacion: string | null;
 };
 
-export type RevisionResumen = { decision: "APROBADO" | "DEVUELTO"; comentario: string | null; revisor: string; fecha: string };
+export type RevisionResumen = {
+  id?: string;
+  decision: "APROBADO" | "DEVUELTO";
+  comentario: string | null;
+  revisor: string;
+  fecha: string;
+  observaciones?: Array<{ recomendacionId: string | null; comentario: string }>;
+};
 
 /** HU-04 · GET /planes/:id */
 export type PlanDetalle = PlanResumen & {
@@ -93,8 +100,11 @@ export type PlanDetalle = PlanResumen & {
   vigenciaFin: string;
   /** true en BORRADOR o DEVUELTO */
   editable: boolean;
+  /** Primera fecha permitida para configurar metas; debe ser superada, no igualada. */
+  fechaMinimaMeta?: string;
   recomendacionesDetalle: RecomendacionPlan[];
   ultimaRevision: RevisionResumen | null;
+  revisiones?: RevisionResumen[];
 };
 
 export type CicloResumen = { id: string; licenciatura: string; organismo: string; vigenciaInicio: string; vigenciaFin: string };
