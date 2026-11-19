@@ -46,7 +46,7 @@ const AvisoPrivacidadPage = () => (
             <p className="t-small t-muted" style={{ margin: 0 }}>Última actualización: 11 de noviembre de 2026</p>
           </div>
         </div>
-        <Alert tipo="info">Texto de ejemplo. Sustituir por el aviso oficial aprobado por la Unidad de Transparencia de la UNAM.</Alert>
+        <Alert tipo="info">Hecho en México, todos los derechos reservados 2026. Esta página puede ser reproducida con fines no lucrativos, siempre y cuando no se mutile, se cite la fuente completa y su dirección electrónica. De otra forma, requiere permiso previo por escrito de la institución.</Alert>
         {SECCIONES.map(([titulo, texto]) => (
           <section key={titulo} className="stack" style={{ gap: 8 }}>
             <h2 className="t-h3 t-primary">{titulo}</h2>
