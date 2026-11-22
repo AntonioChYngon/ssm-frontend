@@ -163,6 +163,15 @@ export const restablecerContrasena = async (token: string, nueva: string): Promi
   if (!USE_MOCKS) await request("/auth/restablecer", { method: "POST", body: JSON.stringify({ token, nueva }) });
 };
 
+/** POST /auth/cambiar-contrasena: actualiza la contraseña de la sesión autenticada. */
+export const cambiarContrasena = async (actual: string, nueva: string): Promise<void> => {
+  if (!USE_MOCKS) {
+    await request("/auth/cambiar-contrasena", { method: "POST", body: JSON.stringify({ actual, nueva }) });
+    return;
+  }
+  await esperar();
+};
+
 /** HU-02 · POST /usuarios */
 export const crearUsuario = async (datos: CrearUsuarioPayload): Promise<Usuario> => {
   if (!USE_MOCKS) return request<Usuario>("/usuarios", { method: "POST", body: JSON.stringify(datos) });
