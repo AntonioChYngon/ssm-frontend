@@ -209,6 +209,14 @@ export type CrearUsuarioPayload = {
 /** HU-02 · PATCH /usuarios/:id/asignacion */
 export type CambiarAsignacionPayload = { rol: Exclude<Rol, "ADMINISTRADOR">; coordinacionId: string };
 
+/** HU-02 · GET /usuarios/coordinaciones */
+export type CoordinacionOpcion = {
+  id: string;
+  nombre: string;
+  licenciaturaId: string;
+  licenciatura: string;
+};
+
 /** HU-04 · GET /catalogos */
 export type ItemCatalogo = { id: string; nombre: string };
 export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
