@@ -5,6 +5,7 @@ import type {
   AtencionLicenciatura,
   CambiarAsignacionPayload,
   Catalogos,
+  CoordinacionOpcion,
   CrearUsuarioPayload,
   DevolverPlanPayload,
   GuardarMetasPayload,
@@ -125,6 +126,17 @@ export const rutaInicio = (rol: Rol) => (rol === "ADMINISTRADOR" ? "/admin/dashb
 /** GET /usuarios */
 export const listarUsuarios = async (): Promise<Usuario[]> => (USE_MOCKS ? mock.USUARIOS : request<Usuario[]>("/usuarios"));
 
+/** HU-02 · GET /usuarios/coordinaciones */
+export const listarCoordinaciones = async (): Promise<CoordinacionOpcion[]> => {
+  if (!USE_MOCKS) return request<CoordinacionOpcion[]>("/usuarios/coordinaciones");
+  return mock.LICENCIATURAS.map((licenciatura, indice) => ({
+    id: String(indice + 1),
+    nombre: `Coordinación de ${licenciatura}`,
+    licenciaturaId: String(indice + 1),
+    licenciatura,
+  }));
+};
+
 /** GET /informes */
 export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? mock.INFORMES : request<InformeResumen[]>("/informes"));
 
@@ -176,22 +188,47 @@ export const cambiarContrasena = async (actual: string, nueva: string): Promise<
 export const crearUsuario = async (datos: CrearUsuarioPayload): Promise<Usuario> => {
   if (!USE_MOCKS) return request<Usuario>("/usuarios", { method: "POST", body: JSON.stringify(datos) });
   await esperar();
-  return { id: `mock-${Date.now()}`, nombre: `${datos.nombre} ${datos.apellido}`, correo: datos.correo, rol: datos.rol, licenciatura: "Actuaría", activo: true };
+  const usuario: Usuario = {
+    id: `mock-${Date.now()}`,
+    nombre: `${datos.nombre} ${datos.apellido}`,
+    correo: datos.correo,
+    rol: datos.rol,
+    licenciatura: mock.LICENCIATURAS[Number(datos.coordinacionId) - 1] ?? "Actuaría",
+    activo: true,
+  };
+  mock.USUARIOS.unshift(usuario);
+  return usuario;
 };
 
 /** HU-02 · PATCH /usuarios/:id/asignacion */
 export const cambiarAsignacion = async (id: string, datos: CambiarAsignacionPayload): Promise<void> => {
-  if (!USE_MOCKS) await request(`/usuarios/${id}/asignacion`, { method: "PATCH", body: JSON.stringify(datos) });
+  if (!USE_MOCKS) {
+    await request(`/usuarios/${id}/asignacion`, { method: "PATCH", body: JSON.stringify(datos) });
+    return;
+  }
+  await esperar();
+  const usuario = mock.USUARIOS.find((elemento) => elemento.id === id);
+  if (usuario) {
+    usuario.rol = datos.rol;
+    usuario.licenciatura = mock.LICENCIATURAS[Number(datos.coordinacionId) - 1] ?? usuario.licenciatura;
+  }
 };
 
 /** HU-02 · POST /usuarios/:id/restablecer */
 export const restablecerContrasenaDeUsuario = async (id: string): Promise<void> => {
   if (!USE_MOCKS) await request(`/usuarios/${id}/restablecer`, { method: "POST" });
+  else await esperar();
 };
 
 /** HU-02 · PATCH /usuarios/:id/estado */
 export const cambiarEstadoUsuario = async (id: string, activo: boolean, motivo?: string): Promise<void> => {
-  if (!USE_MOCKS) await request(`/usuarios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo, motivo }) });
+  if (!USE_MOCKS) {
+    await request(`/usuarios/${id}/estado`, { method: "PATCH", body: JSON.stringify({ activo, motivo }) });
+    return;
+  }
+  await esperar();
+  const usuario = mock.USUARIOS.find((elemento) => elemento.id === id);
+  if (usuario) usuario.activo = activo;
 };
 
 /** HU-04 · GET /catalogos */
