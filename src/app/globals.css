@@ -140,6 +140,16 @@ img { max-width: 100%; }
 .field__control textarea { resize: vertical; min-height: 72px; }
 .field__control--area { align-items: flex-start; padding-top: 2px; }
 .field__icon { color: var(--color-text-muted); display: inline-flex; }
+/* Ver/ocultar contraseña: botón propio (el nativo de Edge se oculta al autocompletar), así que se esconde el nativo. */
+.field__toggle {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 40px; height: 40px; margin-right: -8px; border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--color-text-muted); cursor: pointer;
+}
+.field__toggle:hover { color: var(--color-primary); background: var(--color-primary-tint); }
+.field__toggle:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
+.field__toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+.field__control input::-ms-reveal, .field__control input::-ms-clear { display: none; }
 .field__help { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; color: var(--color-text-muted); }
 .field--error .field__control { border: 2px solid var(--color-danger); padding: 0 13px; }
 .field--error .field__help { color: var(--color-danger-text); }

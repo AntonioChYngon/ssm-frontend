@@ -4,6 +4,7 @@ import * as mock from "./mock-data";
 import type {
   AtencionLicenciatura,
   CambiarAsignacionPayload,
+  Actividad,
   Catalogos,
   CicloAdministracion,
   CicloPayload,
@@ -116,6 +117,18 @@ export const login = async (correo: string, contrasena: string): Promise<Sesion>
 
 /** GET /auth/me: confirma que el token sigue vigente y devuelve el usuario actualizado. */
 export const obtenerUsuarioActual = async (): Promise<Usuario> => (USE_MOCKS ? (leerUsuarioSesion() ?? mock.USUARIOS[1]) : request<Usuario>("/auth/me"));
+
+/** Mi perfil · GET /auth/actividad (últimos 10 movimientos propios). */
+export const obtenerMiActividad = async (): Promise<Actividad[]> => {
+  if (!USE_MOCKS) return request<Actividad[]>("/auth/actividad");
+  await esperar(150);
+  const hace = (minutos: number) => new Date(Date.now() - minutos * 60_000).toISOString();
+  return [
+    { id: "a3", tipo: "PLAN", descripcion: "Editó una recomendación del plan", fecha: hace(7) },
+    { id: "a2", tipo: "SESION", descripcion: "Inicio de sesión", fecha: hace(15) },
+    { id: "a1", tipo: "SEGURIDAD", descripcion: "Cambió su contraseña", fecha: hace(60 * 26) },
+  ];
+};
 
 /** POST /auth/recuperar */
 export const solicitarRecuperacion = async (correo: string): Promise<void> => {

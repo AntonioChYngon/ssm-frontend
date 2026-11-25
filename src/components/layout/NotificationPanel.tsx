@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Badge } from "@/components/ui/Display";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Radio } from "@/components/ui/Field";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ChipGroup, Drawer } from "@/components/ui/Interactive";
 import { ApiError, listarNotificaciones, marcarNotificacionLeida, marcarTodasLasNotificacionesLeidas } from "@/lib/api";
-import type { CanalNotificacion, Notificacion, TipoNotificacion } from "@/lib/types";
+import type { Notificacion, TipoNotificacion } from "@/lib/types";
 
 const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; filtro: string }> = {
   VENCIMIENTO: { icon: "reloj", bg: "var(--color-danger-bg)", fg: "var(--color-danger-text)", filtro: "Vencidos" },
@@ -20,7 +19,6 @@ const TIPO: Record<TipoNotificacion, { icon: IconName; bg: string; fg: string; f
 export const NotificationPanel = ({ open, onClose, onUnreadCountChange }: { open: boolean; onClose: () => void; onUnreadCountChange?: (count: number) => void }) => {
   const [items, setItems] = useState<Notificacion[]>([]);
   const [filtro, setFiltro] = useState("Todas");
-  const [canal, setCanal] = useState<CanalNotificacion>("AMBOS");
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
@@ -120,14 +118,10 @@ export const NotificationPanel = ({ open, onClose, onUnreadCountChange }: { open
           );
         })}
       </ul>
-      <fieldset className="stack" style={{ "--gap": "4px", margin: 0, border: 0, borderTop: "1px solid var(--color-gray-200)", background: "var(--color-gray-50)", padding: "16px 24px 20px" } as CSSProperties}>
-        <legend className="row t-medium" style={{ gap: 8, float: "left", width: "100%" }}><Icon name="engrane" size={20} className="t-primary" />Preferencias de entrega</legend>
-        <div className="row" style={{ gap: 16 }}>
-          <Radio name="canal" label="Correo" checked={canal === "CORREO"} onChange={() => setCanal("CORREO")} />
-          <Radio name="canal" label="In-App" checked={canal === "IN_APP"} onChange={() => setCanal("IN_APP")} />
-          <Radio name="canal" label="Ambos" checked={canal === "AMBOS"} onChange={() => setCanal("AMBOS")} />
-        </div>
-      </fieldset>
+      {/* HU-05/10/11: los avisos salen siempre por los dos canales (no hay preferencia que elegir). */}
+      <p className="row t-small t-muted" style={{ gap: 8, margin: 0, borderTop: "1px solid var(--color-gray-200)", background: "var(--color-gray-50)", padding: "14px 24px" }}>
+        <Icon name="info" size={18} />Los avisos llegan aquí y también a tu correo institucional.
+      </p>
     </Drawer>
   );
 };

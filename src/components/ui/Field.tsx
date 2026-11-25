@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { Icon, type IconName } from "./Icon";
 
 type FieldShellProps = {
@@ -33,13 +33,36 @@ type TextFieldProps = {
   error?: string;
 } & InputHTMLAttributes<HTMLInputElement>;
 
-export const TextField = ({ label, icon, help, error, id, disabled, ...rest }: TextFieldProps) => {
+export const TextField = ({ label, icon, help, error, id, disabled, type, ...rest }: TextFieldProps) => {
   const autoId = useId();
   const fieldId = id ?? autoId;
+  // Botón propio para ver la contraseña: el de Edge desaparece cuando el navegador la autocompleta.
+  const esContrasena = type === "password";
+  const [visible, setVisible] = useState(false);
   return (
     <FieldShell id={fieldId} label={label} help={help} error={error} disabled={disabled}>
       {icon && <span className="field__icon"><Icon name={icon} size={20} /></span>}
-      <input id={fieldId} disabled={disabled} aria-invalid={Boolean(error)} aria-describedby={error || help ? `${fieldId}-help` : undefined} {...rest} />
+      <input
+        id={fieldId}
+        type={esContrasena && visible ? "text" : type}
+        disabled={disabled}
+        aria-invalid={Boolean(error)}
+        aria-describedby={error || help ? `${fieldId}-help` : undefined}
+        {...rest}
+      />
+      {esContrasena && (
+        <button
+          type="button"
+          className="field__toggle"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? `Ocultar ${label.replace(/\s*\*$/, "").toLowerCase()}` : `Mostrar ${label.replace(/\s*\*$/, "").toLowerCase()}`}
+          aria-pressed={visible}
+          aria-controls={fieldId}
+          disabled={disabled}
+        >
+          <Icon name={visible ? "ocultar" : "ver"} size={20} />
+        </button>
+      )}
     </FieldShell>
   );
 };
