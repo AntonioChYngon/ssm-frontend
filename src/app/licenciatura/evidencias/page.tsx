@@ -1,13 +1,15 @@
 "use client";
 
+// Pantalla de demostración (datos de ejemplo). La línea A (HU-07) la reemplaza por /licenciatura/informe.
+
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Alert, Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { obtenerMiPlan, subirEvidencia } from "@/lib/api";
+import { obtenerMiPlan } from "@/lib/api";
 import { EVIDENCIAS_EN_PROCESO, EVIDENCIAS_META } from "@/lib/mock-data";
-import type { Evidencia } from "@/lib/types";
+import type { SubidaEvidencia } from "@/lib/types";
 
 const PERMITIDOS = ["pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png"];
 const MAX_MB = 20;
@@ -16,7 +18,7 @@ const extension = (nombre: string) => nombre.split(".").pop()?.toLowerCase() ?? 
 const tamanoLegible = (bytes: number) => (bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`);
 
 const EvidenciasPage = () => {
-  const [archivos, setArchivos] = useState<Evidencia[]>(EVIDENCIAS_EN_PROCESO);
+  const [archivos, setArchivos] = useState<SubidaEvidencia[]>(EVIDENCIAS_EN_PROCESO);
   const [arrastrando, setArrastrando] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   // HU-18: con el ciclo terminado no se suben evidencias; se muestra el aviso de la Unidad de Planeación.
@@ -31,7 +33,7 @@ const EvidenciasPage = () => {
   // Simula el avance de subida y conversión a PDF mientras no hay backend.
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setArchivos((prev) => prev.map((a): Evidencia => {
+      setArchivos((prev) => prev.map((a): SubidaEvidencia => {
         if (a.estado !== "SUBIENDO" && a.estado !== "CONVIRTIENDO") return a;
         const progreso = Math.min(100, a.progreso + 7);
         if (progreso < 100) return { ...a, progreso };
@@ -43,13 +45,12 @@ const EvidenciasPage = () => {
 
   const agregar = (lista: FileList | null) => {
     if (!lista || cicloCerrado) return;
-    const nuevos: Evidencia[] = Array.from(lista).map((file): Evidencia => {
+    const nuevos: SubidaEvidencia[] = Array.from(lista).map((file): SubidaEvidencia => {
       const valido = PERMITIDOS.includes(extension(file.name));
       const pesado = file.size > MAX_MB * 1024 * 1024;
-      if (valido && !pesado) void subirEvidencia("m3", file);
       return {
         id: crypto.randomUUID(),
-        metaId: "m3",
+        recomendacionId: "r2",
         nombreOriginal: file.name,
         tamano: tamanoLegible(file.size),
         estado: valido && !pesado ? "SUBIENDO" : "ERROR",

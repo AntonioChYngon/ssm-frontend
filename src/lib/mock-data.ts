@@ -4,15 +4,17 @@ import type {
   AvanceLicenciatura,
   Devolucion,
   CicloResumen,
-  Evidencia,
   EventoBitacora,
   Incumplimiento,
+  InformeDetalle,
   InformeResumen,
+  MiInforme,
   Meta,
   Notificacion,
   PlanDetalle,
   PlanResumen,
   RecomendacionPlan,
+  SubidaEvidencia,
   Usuario,
 } from "./types";
 
@@ -115,11 +117,11 @@ export const PROXIMAS_METAS = [
   { meta: "Reporte de licencias", recomendacion: "Recomendación 3", vence: "15/12/2026", real: 100, esperado: 100, estado: "Completado" as const },
 ];
 
-export const EVIDENCIAS_EN_PROCESO: Evidencia[] = [
-  { id: "e1", metaId: "m3", nombreOriginal: "acta_comite_carrera.docx", tamano: "245 KB", estado: "CONVIRTIENDO", progreso: 65 },
-  { id: "e2", metaId: "m3", nombreOriginal: "propuesta_optativas.xlsx", tamano: "88 KB", estado: "SUBIENDO", progreso: 30 },
-  { id: "e3", metaId: "m3", nombreOriginal: "foto_reunion_comite.jpg", tamano: "1.2 MB", estado: "LISTO", progreso: 100 },
-  { id: "e4", metaId: "m3", nombreOriginal: "presentacion_consejo.pptx", tamano: "4.8 MB", estado: "ERROR", progreso: 0, mensajeError: "No se pudo convertir. Guárdalo como PDF y reintenta." },
+export const EVIDENCIAS_EN_PROCESO: SubidaEvidencia[] = [
+  { id: "e1", recomendacionId: "r2", nombreOriginal: "acta_comite_carrera.docx", tamano: "245 KB", estado: "CONVIRTIENDO", progreso: 65 },
+  { id: "e2", recomendacionId: "r2", nombreOriginal: "propuesta_optativas.xlsx", tamano: "88 KB", estado: "SUBIENDO", progreso: 30 },
+  { id: "e3", recomendacionId: "r2", nombreOriginal: "foto_reunion_comite.jpg", tamano: "1.2 MB", estado: "LISTO", progreso: 100 },
+  { id: "e4", recomendacionId: "r2", nombreOriginal: "presentacion_consejo.pptx", tamano: "4.8 MB", estado: "ERROR", progreso: 0, mensajeError: "No se pudo convertir. Guárdalo como PDF y reintenta." },
 ];
 
 export const EVIDENCIAS_META = [
@@ -128,14 +130,92 @@ export const EVIDENCIAS_META = [
   { nombre: "lista_asistencia.pdf", fecha: "28/06/2025" },
 ];
 
-export const INFORMES: InformeResumen[] = [
-  { id: "actuaria-2026-2", licenciatura: "Actuaría", periodo: "2026-2", metasReportadas: 10, metasTotales: 12, fechaEnvio: "10/11/2026", estado: "EN_REVISION" },
-  { id: "mac-2026-2", licenciatura: "Matemáticas Aplicadas y Comp.", periodo: "2026-2", metasReportadas: 8, metasTotales: 11, fechaEnvio: "09/11/2026", estado: "EN_REVISION" },
-  { id: "derecho-2026-2", licenciatura: "Derecho", periodo: "2026-2", metasReportadas: 15, metasTotales: 15, fechaEnvio: "28/10/2026", estado: "VALIDADO" },
-  { id: "rrii-2026-2", licenciatura: "Relaciones Internacionales", periodo: "2026-2", metasReportadas: 7, metasTotales: 8, fechaEnvio: "25/10/2026", estado: "VALIDADO" },
-  { id: "economia-2026-2", licenciatura: "Economía", periodo: "2026-2", metasReportadas: 3, metasTotales: 9, fechaEnvio: "20/10/2026", estado: "DEVUELTO" },
-  { id: "arquitectura-2026-2", licenciatura: "Arquitectura", periodo: "2026-2", metasReportadas: 11, metasTotales: 14, fechaEnvio: "15/10/2026", estado: "VALIDADO" },
+// ---------- Bloque Informe: mismos casos que db/datos_desarrollo.sql del backend ----------
+
+const resumenInforme = (d: InformeDetalle): InformeResumen => ({
+  id: d.id, informeId: d.informeId, cicloId: d.cicloId, licenciaturaId: d.licenciaturaId, licenciatura: d.licenciatura, ciclo: d.ciclo,
+  periodo: d.periodo, fechaInicio: d.fechaInicio, fechaFin: d.fechaFin, fechaCorte: d.fechaCorte, estado: d.estado,
+  enviadoEn: d.enviadoEn, aprobadoEn: d.aprobadoEn, recomendaciones: d.avances.length,
+  conAvance: d.avances.filter((a) => a.porcentaje !== null).length,
+  evidencias: d.avances.reduce((total, a) => total + a.evidencias.length, 0),
+});
+
+const META_EJEMPLO = [{ descripcion: "Cumplir el 100% de las actividades programadas", fechaCompromiso: "2026-06-30", porcentajeEsperado: 50 }];
+
+const avanceEjemplo = (
+  numero: number, recomendacion: string, porcentaje: number | null, extra: Partial<InformeDetalle["avances"][number]> = {},
+): InformeDetalle["avances"][number] => ({
+  recomendacionId: `rec-${numero}`, numero, categoria: "Plan de Estudios", indicador: "Pertinencia del plan de estudios",
+  recomendacion, fechaCumplimiento: "2027-06-30", metas: META_EJEMPLO, esperadoAlCorte: 50, porcentaje,
+  observaciones: porcentaje === null ? null : "Avance de ejemplo.", evidenciaObligatoria: porcentaje === 100, observacionRevision: null, evidencias: [],
+  ...extra,
+});
+
+export const INFORMES_DETALLE: InformeDetalle[] = [
+  {
+    id: "inf-der-2027-1", informeId: "i-der-2027-1", cicloId: "c-derecho", licenciaturaId: "3", licenciatura: "Derecho", ciclo: "2024-2029",
+    periodo: "2027-1", fechaInicio: "2026-08-01", fechaFin: "2027-01-31", fechaCorte: "2027-01-31", estado: "EN_REVISION",
+    enviadoEn: "2026-11-20T16:00:00.000Z", aprobadoEn: null, recomendaciones: 4, conAvance: 4, evidencias: 3,
+    organismo: "CONAED", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", editable: false, bloqueo: "EN_REVISION",
+    avances: [
+      avanceEjemplo(1, "Actualizar los programas de asignatura del área procesal", 100, {
+        evidencias: [
+          { id: "ev1", origen: "ARCHIVO", nombre: "Programas publicados.pdf", tamano: 248_000, enlace: "/evidencias/ev1/archivo", externo: false, cargadaPor: "Coordinación Derecho", cargadaEn: "2026-11-10T15:15:00.000Z" },
+          { id: "ev2", origen: "URL", nombre: "Sitio de la licenciatura", tamano: null, enlace: "https://www.acatlan.unam.mx/", externo: true, cargadaPor: "Coordinación Derecho", cargadaEn: "2026-11-10T15:20:00.000Z" },
+        ],
+      }),
+      avanceEjemplo(2, "Incorporar prácticas de juicios orales en el plan de estudios", 60, {
+        recomendacionId: "der-r2",
+        observacionRevision: "Sube la guía de las prácticas diseñadas.",
+        evidencias: [{ id: "ev3", origen: "ARCHIVO", nombre: "Guía de prácticas de juicios orales.pptx", tamano: 1_200_000, enlace: "/evidencias/ev3/archivo", externo: false, cargadaPor: "Coordinación Derecho", cargadaEn: "2026-11-18T19:00:00.000Z" }],
+      }),
+      avanceEjemplo(3, "Adquirir bibliografía especializada en derecho digital", 20),
+      avanceEjemplo(4, "Suscribir bases de datos jurídicas en línea", 0, { observaciones: null }),
+    ],
+    ultimaRevision: { id: "rv1", decision: "DEVUELTO", comentario: "Falta soporte documental en una recomendación.", revisor: "Administración SSM", fecha: "15/11/2026", observaciones: [{ recomendacionId: "der-r2", comentario: "Sube la guía de las prácticas diseñadas." }] },
+    revisiones: [{ id: "rv1", decision: "DEVUELTO", comentario: "Falta soporte documental en una recomendación.", revisor: "Administración SSM", fecha: "15/11/2026", observaciones: [{ recomendacionId: "der-r2", comentario: "Sube la guía de las prácticas diseñadas." }] }],
+  },
+  {
+    id: "inf-eco-2027-1", informeId: "i-eco-2027-1", cicloId: "c-economia", licenciaturaId: "4", licenciatura: "Economía", ciclo: "2024-2029",
+    periodo: "2027-1", fechaInicio: "2026-08-01", fechaFin: "2027-01-31", fechaCorte: "2027-01-31", estado: "BORRADOR",
+    enviadoEn: null, aprobadoEn: null, recomendaciones: 3, conAvance: 2, evidencias: 0,
+    organismo: "CIEES", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", editable: true, bloqueo: null,
+    avances: [
+      avanceEjemplo(1, "Crear un sistema de seguimiento de egresados", 100, { observaciones: "Falta subir el reporte del sistema." }),
+      avanceEjemplo(2, "Reducir el índice de reprobación en Matemáticas I", 50),
+      avanceEjemplo(3, "Publicar resultados de investigación en revistas arbitradas", null),
+    ],
+    ultimaRevision: null, revisiones: [],
+  },
+  {
+    id: "inf-eco-2026-2", informeId: "i-eco-2026-2", cicloId: "c-economia", licenciaturaId: "4", licenciatura: "Economía", ciclo: "2024-2029",
+    periodo: "2026-2", fechaInicio: "2026-02-01", fechaFin: "2026-07-31", fechaCorte: "2026-07-31", estado: "APROBADO",
+    enviadoEn: "2026-08-04T17:00:00.000Z", aprobadoEn: "2026-08-12T19:30:00.000Z", recomendaciones: 3, conAvance: 3, evidencias: 2,
+    organismo: "CIEES", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", editable: false, bloqueo: "APROBADO",
+    avances: [
+      avanceEjemplo(1, "Crear un sistema de seguimiento de egresados", 100, {
+        evidencias: [{ id: "ev4", origen: "URL", nombre: "Tablero de egresados", tamano: null, enlace: "https://www.acatlan.unam.mx/", externo: true, cargadaPor: "Coordinación Economía", cargadaEn: "2026-07-22T16:00:00.000Z" }],
+      }),
+      avanceEjemplo(2, "Reducir el índice de reprobación en Matemáticas I", 100, {
+        evidencias: [{ id: "ev5", origen: "ARCHIVO", nombre: "Reporte de reprobación 2026-2.xlsx", tamano: 96_000, enlace: "/evidencias/ev5/archivo", externo: false, cargadaPor: "Coordinación Economía", cargadaEn: "2026-07-25T22:30:00.000Z" }],
+      }),
+      avanceEjemplo(3, "Publicar resultados de investigación en revistas arbitradas", 75),
+    ],
+    ultimaRevision: { id: "rv2", decision: "APROBADO", comentario: null, revisor: "Administración SSM", fecha: "12/08/2026", observaciones: [] },
+    revisiones: [{ id: "rv2", decision: "APROBADO", comentario: null, revisor: "Administración SSM", fecha: "12/08/2026", observaciones: [] }],
+  },
 ];
+
+export const INFORMES: InformeResumen[] = INFORMES_DETALLE.map(resumenInforme);
+
+/** Pantalla de la coordinación (Actuaría) en modo demostración: plan aprobado e informe del semestre sin iniciar. */
+export const MI_INFORME: MiInforme = {
+  ciclo: CICLO_ACTUARIA,
+  periodo: { nombre: "2027-1", fechaInicio: "2026-08-01", fechaFin: "2027-01-31", fechaCorte: "2027-01-31" },
+  planAprobado: true,
+  informe: null,
+  anteriores: [],
+};
 
 export const AVANCE_LICENCIATURAS: AvanceLicenciatura[] = [
   { licenciatura: "Actuaría", real: 82, esperado: 75 },

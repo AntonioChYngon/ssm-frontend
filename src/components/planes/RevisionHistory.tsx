@@ -1,12 +1,13 @@
 import { Card } from "@/components/ui/Display";
-import type { RecomendacionPlan, RevisionResumen } from "@/lib/types";
+import type { RevisionResumen } from "@/lib/types";
 
 export const HistorialRevisiones = ({
   revisiones,
   recomendaciones,
 }: {
   revisiones: RevisionResumen[];
-  recomendaciones: RecomendacionPlan[];
+  /** Solo se usan id y número: sirve para el plan (RecomendacionPlan) y el informe (id = recomendacionId). */
+  recomendaciones: ReadonlyArray<{ id: string; numero: number }>;
 }) => {
   if (revisiones.length === 0) return null;
 

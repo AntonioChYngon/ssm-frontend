@@ -1,14 +1,9 @@
-import { notFound } from "next/navigation";
-import { INFORMES } from "@/lib/mock-data";
-import { ValidacionInforme } from "./ValidacionInforme";
+import { RevisionInforme } from "./RevisionInforme";
 
-export const generateStaticParams = () => INFORMES.map((i) => ({ id: i.id }));
-
-const ValidacionInformePage = async ({ params }: { params: Promise<{ id: string }> }) => {
+// El informe se consulta en el navegador (GET /informes/:id) con la sesión del Administrador.
+const RevisionInformePage = async ({ params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
-  const informe = INFORMES.find((i) => i.id === id);
-  if (!informe) notFound();
-  return <ValidacionInforme informe={informe} />;
+  return <RevisionInforme id={id} />;
 };
 
-export default ValidacionInformePage;
+export default RevisionInformePage;

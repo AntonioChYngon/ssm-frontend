@@ -2,18 +2,10 @@
 // Si cambias algo aquí, actualiza también ssm-backend/src/common/enums.ts y los DTO.
 
 export type Rol = "ADMINISTRADOR" | "CAPTURA" | "AUXILIAR";
-export type EstadoDocumento = "BORRADOR" | "EN_REVISION" | "DEVUELTO" | "VALIDADO";
 export type EstadoEvidencia = "SUBIENDO" | "CONVIRTIENDO" | "LISTO" | "ERROR";
 export type TipoNotificacion = "VENCIMIENTO" | "META" | "DEVOLUCION" | "PLAN";
 
 export type EstadoBadge = "Completado" | "Validado" | "Pendiente" | "En revisión" | "En validación" | "Devuelto" | "Vencido" | "Borrador" | "Nuevo";
-
-export const ESTADO_DOCUMENTO_BADGE: Record<EstadoDocumento, EstadoBadge> = {
-  BORRADOR: "Borrador",
-  EN_REVISION: "En revisión",
-  DEVUELTO: "Devuelto",
-  VALIDADO: "Validado",
-};
 
 /** Estados del Plan de Mejora: mismos códigos que version_plan.estado (CHECK ck_plan_estado). */
 export type EstadoPlan = "BORRADOR" | "EN_REVISION" | "APROBADO" | "DEVUELTO";
@@ -136,9 +128,10 @@ export type Meta = {
   porcentajeReal: number;
 };
 
-export type Evidencia = {
+/** HU-07 · Archivo en la cola de subida de la pantalla del informe (estado local, no viene del servidor). */
+export type SubidaEvidencia = {
   id: string;
-  metaId: string;
+  recomendacionId: string;
   nombreOriginal: string;
   tamano: string;
   estado: EstadoEvidencia;
@@ -147,15 +140,112 @@ export type Evidencia = {
   mensajeError?: string;
 };
 
+// ---------------------------------------------------------------------------
+// Bloque Informe de Seguimiento (HU-07, HU-08, HU-11). Debe coincidir con ssm-backend/src/modules/informes/contrato.ts.
+// ---------------------------------------------------------------------------
+
+/** Mismos códigos que version_informe.estado. */
+export type EstadoInforme = "BORRADOR" | "EN_REVISION" | "APROBADO" | "DEVUELTO";
+
+export const ESTADO_INFORME_BADGE: Record<EstadoInforme, EstadoBadge> = {
+  BORRADOR: "Borrador",
+  EN_REVISION: "En revisión",
+  APROBADO: "Validado",
+  DEVUELTO: "Devuelto",
+};
+
+/** Por qué la coordinación no puede editar. Lo calcula solo el backend. */
+export type BloqueoInforme = "CICLO_CERRADO" | "EN_REVISION" | "APROBADO";
+
+/** GET /informes. id = version_informe_id. */
 export type InformeResumen = {
   id: string;
+  informeId: string;
+  cicloId: string;
+  licenciaturaId: string;
   licenciatura: string;
+  ciclo: string;
+  /** Semestre: "2027-1". */
   periodo: string;
-  metasReportadas: number;
-  metasTotales: number;
-  fechaEnvio: string;
-  estado: EstadoDocumento;
+  fechaInicio: string;
+  fechaFin: string;
+  fechaCorte: string;
+  estado: EstadoInforme;
+  /** ISO 8601 */
+  enviadoEn: string | null;
+  aprobadoEn: string | null;
+  recomendaciones: number;
+  conAvance: number;
+  evidencias: number;
 };
+
+export type EvidenciaInforme = {
+  id: string;
+  origen: "ARCHIVO" | "URL";
+  nombre: string;
+  /** Bytes del PDF; null en enlaces. */
+  tamano: number | null;
+  /**
+   * externo = true: URL que se abre directo en una pestaña nueva (enlace o Drive).
+   * externo = false: ruta del API (/evidencias/:id/archivo) que se descarga con la sesión y se abre como blob:.
+   */
+  enlace: string;
+  externo: boolean;
+  cargadaPor: string;
+  /** ISO 8601 */
+  cargadaEn: string;
+};
+
+export type MetaInforme = { descripcion: string; fechaCompromiso: string | null; porcentajeEsperado: number | null };
+
+export type AvanceDetalle = {
+  recomendacionId: string;
+  numero: number;
+  categoria: string;
+  indicador: string;
+  recomendacion: string;
+  fechaCumplimiento: string | null;
+  metas: MetaInforme[];
+  /** Mayor % esperado de las metas que vencen hasta el corte (null si ninguna). */
+  esperadoAlCorte: number | null;
+  /** null = aún no se captura. */
+  porcentaje: number | null;
+  observaciones: string | null;
+  /** true al 100 %: necesita al menos una evidencia para enviar. */
+  evidenciaObligatoria: boolean;
+  /** Observación del Administrador en la última devolución o reapertura. */
+  observacionRevision: string | null;
+  evidencias: EvidenciaInforme[];
+};
+
+/** GET /informes/:id (y respuesta de toda acción que modifica el informe). */
+export type InformeDetalle = InformeResumen & {
+  organismo: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  editable: boolean;
+  bloqueo: BloqueoInforme | null;
+  avances: AvanceDetalle[];
+  ultimaRevision: RevisionResumen | null;
+  revisiones: RevisionResumen[];
+};
+
+export type PeriodoActual = { nombre: string; fechaInicio: string; fechaFin: string; fechaCorte: string };
+
+/** GET /informes/mio */
+export type MiInforme = {
+  ciclo: CicloResumen;
+  /** Semestre en curso (null si hoy está fuera de la vigencia). */
+  periodo: PeriodoActual | null;
+  /** Sin plan aprobado no se puede iniciar el informe. */
+  planAprobado: boolean;
+  /** Informe del semestre en curso (null si aún no se inicia). */
+  informe: InformeDetalle | null;
+  /** Semestres anteriores del mismo ciclo, del más reciente al más antiguo. */
+  anteriores: InformeResumen[];
+};
+
+export type FiltrosInformes = { estado?: EstadoInforme; licenciaturaId?: string; cicloId?: string; periodo?: string };
 
 export type ObservacionItem = { recomendacion: string; texto: string; atendida: boolean };
 

@@ -11,8 +11,11 @@ import type {
   CoordinacionOpcion,
   CrearUsuarioPayload,
   DevolverPlanPayload,
+  FiltrosInformes,
   GuardarMetasPayload,
+  InformeDetalle,
   InformeResumen,
+  MiInforme,
   MiPlan,
   Notificacion,
   PlanDetalle,
@@ -93,13 +96,13 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return (await response.json()) as T;
 };
 
-const requestBlob = async (path: string): Promise<Blob> => {
+const requestBlob = async (path: string, mensajePorDefecto = "No pudimos descargar el reporte."): Promise<Blob> => {
   const token = typeof window === "undefined" ? null : window.sessionStorage.getItem(CLAVE_TOKEN);
   const response = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { message?: string | string[] };
     const mensaje = Array.isArray(body.message) ? body.message[0] : body.message;
-    throw new ApiError(response.status, mensaje ?? "No pudimos descargar el reporte.");
+    throw new ApiError(response.status, mensaje ?? mensajePorDefecto);
   }
   return response.blob();
 };
@@ -152,8 +155,6 @@ export const listarCoordinaciones = async (): Promise<CoordinacionOpcion[]> => {
   }));
 };
 
-/** GET /informes */
-export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? mock.INFORMES : request<InformeResumen[]>("/informes"));
 
 /** GET /notificaciones */
 export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MOCKS ? mock.NOTIFICACIONES : request<Notificacion[]>("/notificaciones"));
@@ -166,17 +167,6 @@ export const marcarNotificacionLeida = async (id: string): Promise<void> => {
 /** PATCH /notificaciones/leidas */
 export const marcarTodasLasNotificacionesLeidas = async (): Promise<void> => {
   if (!USE_MOCKS) await request("/notificaciones/leidas", { method: "PATCH" });
-};
-
-/** POST /evidencias (multipart). El backend convierte a PDF y devuelve el estado. */
-export const subirEvidencia = async (metaId: string, archivo: File): Promise<void> => {
-  if (USE_MOCKS) return;
-  const body = new FormData();
-  body.append("metaId", metaId);
-  body.append("archivo", archivo);
-  const token = window.sessionStorage.getItem(CLAVE_TOKEN);
-  const response = await fetch(`${API_URL}/evidencias`, { method: "POST", body, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
-  if (!response.ok) throw new ApiError(response.status, "No se pudo subir el archivo.");
 };
 
 // ---------------------------------------------------------------------------
@@ -489,4 +479,45 @@ export const guardarMetas = async (recomendacionId: string, datos: GuardarMetasP
 export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<AtencionLicenciatura[]> => {
   if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaId ? `?licenciaturaId=${encodeURIComponent(licenciaturaId)}` : ""}`);
   return mock.ATENCION;
+};
+
+// ---------------------------------------------------------------------------
+// Bloque Informe de Seguimiento (HU-07, HU-08, HU-11) · base compartida (lectura).
+// Las acciones (iniciar, avances, evidencias, enviar, validar, devolver, reabrir) las agregan las líneas A y B
+// debajo de esta sección; todas responden el InformeDetalle completo.
+// ---------------------------------------------------------------------------
+
+const consulta = (filtros: FiltrosInformes) => {
+  const parametros = new URLSearchParams(Object.entries(filtros).filter((par): par is [string, string] => Boolean(par[1])));
+  const texto = parametros.toString();
+  return texto ? `?${texto}` : "";
+};
+
+/** GET /informes · Administrador: todos; Captura y Auxiliar: los de su licenciatura. */
+export const listarInformes = async (filtros: FiltrosInformes = {}): Promise<InformeResumen[]> => {
+  if (!USE_MOCKS) return request<InformeResumen[]>(`/informes${consulta(filtros)}`);
+  await esperar(150);
+  return mock.INFORMES.filter((i) => (!filtros.estado || i.estado === filtros.estado) && (!filtros.periodo || i.periodo === filtros.periodo));
+};
+
+/** GET /informes/:id */
+export const obtenerInforme = async (id: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${encodeURIComponent(id)}`);
+  await esperar(150);
+  const informe = mock.INFORMES_DETALLE.find((i) => i.id === id);
+  if (!informe) throw new ApiError(404, "Informe no encontrado.");
+  return clonar(informe);
+};
+
+/** GET /informes/mio · ciclo vigente, semestre en curso, informe del semestre (o null) y los anteriores. */
+export const obtenerMiInforme = async (): Promise<MiInforme> => {
+  if (!USE_MOCKS) return request<MiInforme>("/informes/mio");
+  await esperar(150);
+  return clonar(mock.MI_INFORME);
+};
+
+/** GET /evidencias/:id/archivo · PDF guardado en la carpeta del ciclo (pide sesión). `enlace` viene de EvidenciaInforme. */
+export const descargarEvidencia = async (enlace: string): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, "Abrir evidencias guardadas requiere conectar el backend.");
+  return requestBlob(enlace, "No pudimos abrir la evidencia.");
 };
