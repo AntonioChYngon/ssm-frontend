@@ -5,7 +5,6 @@ export type Rol = "ADMINISTRADOR" | "CAPTURA" | "AUXILIAR";
 export type EstadoDocumento = "BORRADOR" | "EN_REVISION" | "DEVUELTO" | "VALIDADO";
 export type EstadoEvidencia = "SUBIENDO" | "CONVIRTIENDO" | "LISTO" | "ERROR";
 export type TipoNotificacion = "VENCIMIENTO" | "META" | "DEVOLUCION" | "PLAN";
-export type CanalNotificacion = "CORREO" | "IN_APP" | "AMBOS";
 
 export type EstadoBadge = "Completado" | "Validado" | "Pendiente" | "En revisión" | "En validación" | "Devuelto" | "Vencido" | "Borrador" | "Nuevo";
 
@@ -43,6 +42,8 @@ export type Usuario = {
   activo: boolean;
   /** La cuenta usa una contraseña temporal: debe cambiarla antes de entrar al sistema. */
   debeCambiarContrasena?: boolean;
+  /** Fecha de alta en el sistema (ISO 8601); viene de GET /auth/me. */
+  creadoEn?: string;
   /** Solo en el listado de usuarios del Administrador. */
   ultimoAcceso?: string;
 };
@@ -289,3 +290,7 @@ export type GuardarMetasPayload = {
 export type DevolverPlanPayload = { motivo: string; observaciones: { recomendacionId: string; comentario: string }[] };
 
 // HU-15 · GET /reportes/atencion?licenciaturaId= → AtencionLicenciatura[] (definido arriba)
+
+/** Mi perfil · GET /auth/actividad: últimos movimientos de la propia cuenta. */
+export type TipoActividad = "SESION" | "SEGURIDAD" | "PLAN" | "CUENTAS" | "CICLOS" | "OTRO";
+export type Actividad = { id: string; tipo: TipoActividad; descripcion: string; fecha: string };
