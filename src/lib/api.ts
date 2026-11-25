@@ -178,11 +178,27 @@ export const restablecerContrasena = async (token: string, nueva: string): Promi
 /** POST /auth/cambiar-contrasena: actualiza la contraseña de la sesión autenticada. */
 export const cambiarContrasena = async (actual: string, nueva: string): Promise<void> => {
   if (!USE_MOCKS) {
-    await request("/auth/cambiar-contrasena", { method: "POST", body: JSON.stringify({ actual, nueva }) });
+    // El backend responde un token nuevo sin el cambio pendiente: la sesión continúa sin volver a entrar.
+    const sesion = await request<Partial<Sesion>>("/auth/cambiar-contrasena", { method: "POST", body: JSON.stringify({ actual, nueva }) });
+    if (sesion.token && sesion.usuario) guardarSesion({ token: sesion.token, usuario: sesion.usuario });
     return;
   }
   await esperar();
+  const usuario = leerUsuarioSesion();
+  if (usuario) actualizarUsuarioSesion({ ...usuario, debeCambiarContrasena: false });
 };
+
+/** Reglas de contraseña segura (mismas que esContrasenaSegura del backend). */
+export const reglasContrasena = (nueva: string) => [
+  { texto: "Al menos 8 caracteres", ok: nueva.length >= 8 },
+  { texto: "Una letra mayúscula", ok: /[A-ZÁÉÍÓÚÑ]/.test(nueva) },
+  { texto: "Un número", ok: /\d/.test(nueva) },
+];
+
+export const RUTA_CAMBIO_OBLIGATORIO = "/cambiar-contrasena";
+
+/** A dónde va una sesión recién iniciada: a cambiar la contraseña temporal o a su inicio. */
+export const rutaTrasLogin = (usuario: Usuario) => (usuario.debeCambiarContrasena ? RUTA_CAMBIO_OBLIGATORIO : rutaInicio(usuario.rol));
 
 /** HU-02 · POST /usuarios */
 export const crearUsuario = async (datos: CrearUsuarioPayload): Promise<Usuario> => {

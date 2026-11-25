@@ -41,6 +41,8 @@ export type Usuario = {
   /** Coordinación asignada (null para el Administrador). */
   coordinacion?: string | null;
   activo: boolean;
+  /** La cuenta usa una contraseña temporal: debe cambiarla antes de entrar al sistema. */
+  debeCambiarContrasena?: boolean;
   /** Solo en el listado de usuarios del Administrador. */
   ultimoAcceso?: string;
 };

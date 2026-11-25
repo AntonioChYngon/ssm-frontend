@@ -7,7 +7,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/Display";
 import { Icon } from "@/components/ui/Icon";
 import { navPorRol } from "@/lib/nav";
-import { actualizarUsuarioSesion, cerrarSesion as borrarSesion, leerUsuarioSesion, listarNotificaciones, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
+import { RUTA_CAMBIO_OBLIGATORIO, actualizarUsuarioSesion, cerrarSesion as borrarSesion, leerUsuarioSesion, listarNotificaciones, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
 import { ROL_LABEL, type Rol, type Usuario } from "@/lib/types";
 import { NotificationPanel } from "./NotificationPanel";
 
@@ -43,6 +43,10 @@ const usePerfil = (area: Area) => {
         setPerfil(PERFILES_DEMO[area === "admin" ? "admin" : "licenciatura"]);
         return;
       }
+      if (guardado.debeCambiarContrasena) {
+        router.replace(RUTA_CAMBIO_OBLIGATORIO);
+        return;
+      }
       const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (guardado.rol === "ADMINISTRADOR");
       if (enAreaIncorrecta) {
         router.replace(rutaInicio(guardado.rol));
@@ -60,6 +64,11 @@ const usePerfil = (area: Area) => {
     obtenerUsuarioActual()
       .then((usuario) => {
         actualizarUsuarioSesion(usuario);
+        // Con contraseña temporal el backend rechaza todo lo demás: primero debe cambiarla.
+        if (usuario.debeCambiarContrasena) {
+          router.replace(RUTA_CAMBIO_OBLIGATORIO);
+          return;
+        }
         const enAreaIncorrecta = area !== "comun" && (area === "admin") !== (usuario.rol === "ADMINISTRADOR");
         if (enAreaIncorrecta) {
           router.replace(rutaInicio(usuario.rol));
