@@ -119,7 +119,9 @@ const CapturaPlanPage = () => {
 
   const plan: PlanDetalle | null = miPlan?.plan ?? null;
   const ciclo = miPlan?.ciclo;
-  const editable = plan ? plan.editable : true;
+  // HU-18: al terminar la vigencia del ciclo, la captura queda bloqueada aunque el plan sea editable.
+  const cicloAbierto = ciclo?.activo !== false;
+  const editable = cicloAbierto && (plan ? plan.editable : true);
   const vigencia = { inicio: ciclo?.vigenciaInicio ?? "", fin: ciclo?.vigenciaFin ?? "" };
   const recomendaciones = plan?.recomendacionesDetalle ?? [];
   const numeroEditando = recomendaciones.find((r) => r.id === editandoId)?.numero;
@@ -257,7 +259,7 @@ const CapturaPlanPage = () => {
       <PageTitle
         crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Plan de mejora" }]}
         title="Captura del plan de mejora"
-        subtitle={ciclo ? `Licenciatura en ${ciclo.licenciatura} · Ciclo ${ciclo.vigenciaInicio.slice(0, 4)}–${ciclo.vigenciaFin.slice(0, 4)} · ${ciclo.organismo}` : undefined}
+        subtitle={ciclo ? `Licenciatura en ${ciclo.licenciatura} · Ciclo ${ciclo.nombre} · ${ciclo.organismo}` : undefined}
         actions={
           <>
             {plan && <Badge estado={ESTADO_PLAN_BADGE[plan.estado]} />}
@@ -270,6 +272,7 @@ const CapturaPlanPage = () => {
 
       {usaMocks() && <Alert tipo="info">Modo demostración: los cambios del plan se guardan en memoria y no en MariaDB. Para validar persistencia, inicia el frontend con el backend conectado.</Alert>}
       {aviso && <Alert tipo={aviso.tipo}>{aviso.texto}</Alert>}
+      {ciclo && !cicloAbierto && <Alert tipo="advertencia">{ciclo.mensaje ?? "El ciclo de acreditación ha finalizado. Contacte a la Unidad de Planeación para iniciar un nuevo ciclo."}</Alert>}
       {plan?.estado === "DEVUELTO" && plan.ultimaRevision && (
         <Alert tipo="advertencia">
           <strong>La Administración devolvió el plan el {plan.ultimaRevision.fecha}.</strong> {plan.ultimaRevision.comentario}

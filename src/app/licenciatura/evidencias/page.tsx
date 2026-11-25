@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
-import { Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
+import { Alert, Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { subirEvidencia } from "@/lib/api";
+import { obtenerMiPlan, subirEvidencia } from "@/lib/api";
 import { EVIDENCIAS_EN_PROCESO, EVIDENCIAS_META } from "@/lib/mock-data";
 import type { Evidencia } from "@/lib/types";
 
@@ -19,6 +19,14 @@ const EvidenciasPage = () => {
   const [archivos, setArchivos] = useState<Evidencia[]>(EVIDENCIAS_EN_PROCESO);
   const [arrastrando, setArrastrando] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  // HU-18: con el ciclo terminado no se suben evidencias; se muestra el aviso de la Unidad de Planeación.
+  const [cicloCerrado, setCicloCerrado] = useState<string | null>(null);
+
+  useEffect(() => {
+    obtenerMiPlan()
+      .then(({ ciclo }) => setCicloCerrado(ciclo.activo === false ? ciclo.mensaje ?? "El ciclo de acreditación ha finalizado. Contacte a la Unidad de Planeación para iniciar un nuevo ciclo." : null))
+      .catch(() => setCicloCerrado(null));
+  }, []);
 
   // Simula el avance de subida y conversión a PDF mientras no hay backend.
   useEffect(() => {
@@ -34,7 +42,7 @@ const EvidenciasPage = () => {
   }, []);
 
   const agregar = (lista: FileList | null) => {
-    if (!lista) return;
+    if (!lista || cicloCerrado) return;
     const nuevos: Evidencia[] = Array.from(lista).map((file): Evidencia => {
       const valido = PERMITIDOS.includes(extension(file.name));
       const pesado = file.size > MAX_MB * 1024 * 1024;
@@ -66,6 +74,7 @@ const EvidenciasPage = () => {
         subtitle="Sube los documentos que respaldan cada meta. Los convertimos a PDF automáticamente."
         actions={<Button variant="contorno" icon="descargar">Exportar expediente PDF</Button>}
       />
+      {cicloCerrado && <Alert tipo="advertencia">{cicloCerrado}</Alert>}
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow" style={{ gap: 20 }}>
           <div className="grid-2" style={{ gap: 16 }}>
@@ -77,11 +86,13 @@ const EvidenciasPage = () => {
             onDragOver={(e) => { e.preventDefault(); setArrastrando(true); }}
             onDragLeave={() => setArrastrando(false)}
             onDrop={onDrop}
+            aria-disabled={cicloCerrado ? true : undefined}
+            style={cicloCerrado ? { opacity: 0.5, pointerEvents: "none" } : undefined}
           >
             <span className="avatar" style={{ width: 72, height: 72, background: "var(--color-white)", color: "var(--color-primary)" }}><Icon name="subir" size={36} /></span>
             <h2 className="t-h2 t-primary">Arrastra tus archivos aquí</h2>
             <span className="t-muted">o</span>
-            <Button icon="carpeta" onClick={() => input.current?.click()}>Seleccionar archivos</Button>
+            <Button icon="carpeta" onClick={() => input.current?.click()} disabled={Boolean(cicloCerrado)}>Seleccionar archivos</Button>
             <input ref={input} type="file" multiple hidden accept={PERMITIDOS.map((e) => `.${e}`).join(",")} onChange={(e) => agregar(e.target.files)} />
             <span className="t-small t-muted">PDF, Word, Excel, JPG o PNG · máximo {MAX_MB} MB por archivo</span>
           </div>
@@ -128,7 +139,7 @@ const EvidenciasPage = () => {
           </Card>
           <Card style={{ padding: 16, gap: 0 }}>
             <span className="t-small t-medium t-muted">Meta: Aprobación del Consejo Técnico</span>
-            <EmptyState titulo="Aún no hay evidencias" mensaje="Cuando el Consejo Técnico apruebe la propuesta, sube aquí el acta." action={<Button icon="subir" onClick={() => input.current?.click()}>Subir evidencias</Button>} />
+            <EmptyState titulo="Aún no hay evidencias" mensaje="Cuando el Consejo Técnico apruebe la propuesta, sube aquí el acta." action={<Button icon="subir" onClick={() => input.current?.click()} disabled={Boolean(cicloCerrado)}>Subir evidencias</Button>} />
           </Card>
         </aside>
       </div>

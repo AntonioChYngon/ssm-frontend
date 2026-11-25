@@ -8,6 +8,7 @@ const ADMIN: NavSection[] = [
   { title: "GENERAL", items: [
     { label: "Dashboard global", href: "/admin/dashboard", icon: "grafica" },
     { label: "Gestión de usuarios", href: "/admin/usuarios", icon: "usuarios" },
+    { label: "Ciclos de acreditación", href: "/admin/ciclos", icon: "calendario" },
   ] },
   { title: "VALIDACIÓN", items: [
     { label: "Planes de mejora", href: "/admin/planes", icon: "documento" },
