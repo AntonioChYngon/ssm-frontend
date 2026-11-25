@@ -267,6 +267,9 @@ export type CicloPayload = {
  * HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) · PUT /recomendaciones/:id (existente).
  * Obligatorios en borrador: categoriaId, indicador y descripcion. Los demás se exigen al enviar a validación.
  */
+/** Meta capturada en la pantalla del plan. */
+export type MetaPayload = { descripcion: string; fechaCompromiso: string | null; porcentajeEsperado: number | null };
+
 export type RecomendacionPayload = {
   categoriaId: string;
   /** Texto abierto */
@@ -274,7 +277,8 @@ export type RecomendacionPayload = {
   descripcion: string;
   /** Acciones para atender la recomendación */
   acciones?: string[];
-  metas?: string[];
+  /** HU-04/HU-12: fecha y % se pueden capturar aquí o después en Metas (null = sin configurar). */
+  metas?: MetaPayload[];
   /** Texto abierto */
   areaResponsable?: string;
   /** AAAA-MM-DD, dentro de la vigencia del ciclo */

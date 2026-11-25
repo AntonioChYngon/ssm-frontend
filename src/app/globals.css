@@ -150,6 +150,13 @@ img { max-width: 100%; }
 .field__toggle:focus-visible { outline: 0; box-shadow: var(--focus-ring); }
 .field__toggle:disabled { cursor: not-allowed; opacity: 0.5; }
 .field__control input::-ms-reveal, .field__control input::-ms-clear { display: none; }
+/* Captura del plan: una meta por fila (texto, fecha compromiso, % esperado y quitar). */
+.meta-fila { display: grid; grid-template-columns: minmax(0, 1fr) 190px 120px auto; gap: 10px; align-items: start; }
+.meta-fila__quitar { padding-top: 26px; }
+@media (max-width: 760px) {
+  .meta-fila { grid-template-columns: 1fr 1fr auto; }
+  .meta-fila > :first-child { grid-column: 1 / -1; }
+}
 .field__help { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; color: var(--color-text-muted); }
 .field--error .field__control { border: 2px solid var(--color-danger); padding: 0 13px; }
 .field--error .field__help { color: var(--color-danger-text); }

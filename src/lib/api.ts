@@ -407,9 +407,10 @@ export const guardarRecomendacion = async (cicloId: string, datos: Recomendacion
   exigirEditableDemo();
   const anterior = planDemo.recomendacionesDetalle.find((r) => r.id === recomendacionId);
   const metasPrevias = [...(anterior?.metas ?? [])];
-  const metas = (datos.metas ?? []).map((descripcion) => {
+  const metas = (datos.metas ?? []).map(({ descripcion, fechaCompromiso, porcentajeEsperado }) => {
     const i = metasPrevias.findIndex((m) => m.descripcion === descripcion);
-    return i >= 0 ? metasPrevias.splice(i, 1)[0]! : { id: `m-${crypto.randomUUID()}`, descripcion, fechaCompromiso: null, porcentajeEsperado: null };
+    const id = i >= 0 ? metasPrevias.splice(i, 1)[0]!.id : `m-${crypto.randomUUID()}`;
+    return { id, descripcion, fechaCompromiso, porcentajeEsperado };
   });
   const rec: RecomendacionPlan = {
     id: recomendacionId ?? `r-${crypto.randomUUID()}`,
