@@ -60,7 +60,7 @@ export const PLANES: PlanResumen[] = [
   { id: "pedagogia", cicloId: "c-pedagogia", licenciatura: "Pedagogía", organismo: "CEPPE", ciclo: "2024–2029", recomendaciones: 10, avance: 0, estado: "BORRADOR", actualizado: "—" },
 ];
 
-export const CICLO_ACTUARIA: CicloResumen = { id: "c-actuaria", licenciatura: "Actuaría", organismo: "CONAC", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28" };
+export const CICLO_ACTUARIA: CicloResumen = { id: "c-actuaria", nombre: "2024-2029", licenciatura: "Actuaría", organismo: "CONAC", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", activo: true, mensaje: null };
 
 export const RECOMENDACIONES: RecomendacionPlan[] = [
   {

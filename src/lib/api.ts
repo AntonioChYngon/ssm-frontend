@@ -5,6 +5,8 @@ import type {
   AtencionLicenciatura,
   CambiarAsignacionPayload,
   Catalogos,
+  CicloAdministracion,
+  CicloPayload,
   CoordinacionOpcion,
   CrearUsuarioPayload,
   DevolverPlanPayload,
@@ -254,8 +256,72 @@ export const obtenerCatalogos = async (): Promise<Catalogos> => {
   return {
     categorias: lista(mock.CATEGORIAS),
     areas: lista(["Secretaría Académica", "Secretaría General", "Biblioteca", "Centro de Cómputo"]),
-    organismos: lista(["Organismo Acreditador de Prueba A", "Organismo Acreditador de Prueba B"]),
+    organismos: lista(["Comités Interinstitucionales para la Evaluación de la Educación Superior A.C. (CIEES)", "Consejo para la Acreditación de la Enseñanza del Derecho A.C. (CONAED)"]),
+    licenciaturas: lista(["Actuaría", "Derecho", "Economía", "Sociología"]),
   };
+};
+
+// ---------- HU-18 · Ciclos de acreditación (solo Administrador) ----------
+
+// Modo demostración: los ciclos viven en memoria mientras la pestaña esté abierta.
+let ciclosDemo: CicloAdministracion[] = [
+  {
+    id: "c-actuaria", nombre: "2024-2029", licenciatura: { id: "1", nombre: "Actuaría" },
+    organismo: { id: "1", nombre: "Comités Interinstitucionales para la Evaluación de la Educación Superior A.C. (CIEES)" },
+    fechaEmision: "2024-11-28", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", estado: "VIGENTE", activo: true,
+    referenciaConstancia: null, carpeta: { ruta: "/Evidencias/Actuaría/2024-2029", url: null }, plan: null,
+  },
+];
+
+const cicloDemo = (datos: CicloPayload, id: string): CicloAdministracion => {
+  const catalogo = (lista: string[], itemId: string) => ({ id: itemId, nombre: lista[Number(itemId) - 1] ?? "—" });
+  const nombre = datos.nombre?.trim() || `${datos.vigenciaInicio.slice(0, 4)}-${datos.vigenciaFin.slice(0, 4)}`;
+  const licenciatura = catalogo(["Actuaría", "Derecho", "Economía", "Sociología"], datos.licenciaturaId);
+  const vencido = datos.vigenciaFin < new Date().toISOString().slice(0, 10);
+  return {
+    id, nombre, licenciatura, organismo: catalogo(["CIEES", "CONAED"], datos.organismoId),
+    fechaEmision: datos.fechaEmision, vigenciaInicio: datos.vigenciaInicio, vigenciaFin: datos.vigenciaFin,
+    estado: vencido ? "HISTORICO" : "VIGENTE", activo: !vencido, referenciaConstancia: datos.referenciaConstancia ?? null,
+    carpeta: { ruta: `/Evidencias/${licenciatura.nombre}/${nombre}`, url: null }, plan: null,
+  };
+};
+
+/** HU-18 · GET /ciclos */
+export const listarCiclos = async (): Promise<CicloAdministracion[]> => {
+  if (!USE_MOCKS) return request<CicloAdministracion[]>("/ciclos");
+  await esperar(150);
+  return structuredClone(ciclosDemo);
+};
+
+/** HU-18 · POST /ciclos: inicia el ciclo y crea su carpeta /Evidencias/[Licenciatura]/[nombre]/ */
+export const crearCiclo = async (datos: CicloPayload): Promise<CicloAdministracion> => {
+  if (!USE_MOCKS) return request<CicloAdministracion>("/ciclos", { method: "POST", body: JSON.stringify(datos) });
+  await esperar();
+  const nuevo = cicloDemo(datos, crypto.randomUUID());
+  if (nuevo.estado === "VIGENTE" && ciclosDemo.some((c) => c.licenciatura.id === nuevo.licenciatura.id && c.activo)) {
+    throw new ApiError(409, `${nuevo.licenciatura.nombre} ya tiene un ciclo activo. Podrás iniciar uno nuevo cuando termine.`);
+  }
+  ciclosDemo = [...ciclosDemo.map((c) => (c.licenciatura.id === nuevo.licenciatura.id && nuevo.estado === "VIGENTE" ? { ...c, estado: "HISTORICO" as const, activo: false } : c)), nuevo];
+  return structuredClone(nuevo);
+};
+
+/** HU-18 · PATCH /ciclos/:id: solo mientras la coordinación no haya capturado su plan. */
+export const actualizarCiclo = async (id: string, datos: CicloPayload): Promise<CicloAdministracion> => {
+  if (!USE_MOCKS) return request<CicloAdministracion>(`/ciclos/${id}`, { method: "PATCH", body: JSON.stringify(datos) });
+  await esperar();
+  const actualizado = cicloDemo(datos, id);
+  ciclosDemo = ciclosDemo.map((c) => (c.id === id ? actualizado : c));
+  return structuredClone(actualizado);
+};
+
+/** HU-18 · POST /ciclos/:id/carpeta: crea la carpeta de un ciclo que no la tiene. */
+export const crearCarpetaCiclo = async (id: string): Promise<CicloAdministracion> => {
+  if (!USE_MOCKS) return request<CicloAdministracion>(`/ciclos/${id}/carpeta`, { method: "POST" });
+  await esperar();
+  const ciclo = ciclosDemo.find((c) => c.id === id);
+  if (!ciclo) throw new ApiError(404, "No existe ese ciclo de acreditación.");
+  ciclo.carpeta = { ruta: `/Evidencias/${ciclo.licenciatura.nombre}/${ciclo.nombre}`, url: null };
+  return structuredClone(ciclo);
 };
 
 // ----- HU-04 / HU-05 / HU-12 · Plan de Mejora -----

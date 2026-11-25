@@ -109,7 +109,18 @@ export type PlanDetalle = PlanResumen & {
   revisiones?: RevisionResumen[];
 };
 
-export type CicloResumen = { id: string; licenciatura: string; organismo: string; vigenciaInicio: string; vigenciaFin: string };
+export type CicloResumen = {
+  id: string;
+  /** HU-18: p. ej. "2024-2029". */
+  nombre: string;
+  licenciatura: string;
+  organismo: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  /** false cuando ya pasó la fecha de fin: la captura queda bloqueada y se muestra `mensaje`. */
+  activo: boolean;
+  mensaje: string | null;
+};
 
 /** HU-04 · GET /planes/mio (plan null si aún no se captura nada en el ciclo vigente) */
 export type MiPlan = { ciclo: CicloResumen; plan: PlanDetalle | null };
@@ -221,7 +232,35 @@ export type CoordinacionOpcion = {
 
 /** HU-04 · GET /catalogos */
 export type ItemCatalogo = { id: string; nombre: string };
-export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[] };
+export type Catalogos = { categorias: ItemCatalogo[]; areas: ItemCatalogo[]; organismos: ItemCatalogo[]; licenciaturas: ItemCatalogo[] };
+
+/** HU-18 · GET /ciclos (Administrador): ciclos de cada licenciatura con su carpeta y el estado de su plan. */
+export type CicloAdministracion = {
+  id: string;
+  nombre: string;
+  licenciatura: ItemCatalogo;
+  organismo: ItemCatalogo;
+  /** AAAA-MM-DD */
+  fechaEmision: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  estado: "VIGENTE" | "CERRADO" | "HISTORICO";
+  activo: boolean;
+  referenciaConstancia: string | null;
+  carpeta: { ruta: string; url: string | null } | null;
+  plan: { versionId: string; numero: number; estado: EstadoPlan; recomendaciones: number } | null;
+};
+
+/** HU-18 · POST /ciclos y PATCH /ciclos/:id. Sin nombre, el backend usa "AAAA-AAAA". */
+export type CicloPayload = {
+  licenciaturaId: string;
+  organismoId: string;
+  nombre?: string;
+  fechaEmision: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  referenciaConstancia?: string;
+};
 
 /**
  * HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) · PUT /recomendaciones/:id (existente).
