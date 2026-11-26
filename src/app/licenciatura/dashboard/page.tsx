@@ -12,7 +12,7 @@ const DashboardLicenciaturaPage = () => (
     <PageTitle
       title="Hola, Jorge"
       subtitle="Licenciatura en Actuaría · Plan 2024–2029 · Organismo acreditador: CONAC"
-      actions={<><LinkButton href="/licenciatura/evidencias" variant="contorno" icon="subir">Cargar evidencias</LinkButton><LinkButton href="/licenciatura/plan" icon="editar">Continuar captura</LinkButton></>}
+      actions={<><LinkButton href="/licenciatura/informe" variant="contorno" icon="subir">Informe de seguimiento</LinkButton><LinkButton href="/licenciatura/plan" icon="editar">Continuar captura</LinkButton></>}
     />
     <EstadoMiPlan />
     <div className="grid-4">

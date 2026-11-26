@@ -14,7 +14,6 @@ import type {
   PlanDetalle,
   PlanResumen,
   RecomendacionPlan,
-  SubidaEvidencia,
   Usuario,
 } from "./types";
 
@@ -115,19 +114,6 @@ export const PROXIMAS_METAS = [
   { meta: "Actualizar optativas", recomendacion: "Recomendación 2", vence: "20/11/2026", real: 40, esperado: 50, estado: "Pendiente" as const },
   { meta: "Contratación de 2 PTC", recomendacion: "Recomendación 1", vence: "30/11/2026", real: 80, esperado: 90, estado: "Pendiente" as const },
   { meta: "Reporte de licencias", recomendacion: "Recomendación 3", vence: "15/12/2026", real: 100, esperado: 100, estado: "Completado" as const },
-];
-
-export const EVIDENCIAS_EN_PROCESO: SubidaEvidencia[] = [
-  { id: "e1", recomendacionId: "r2", nombreOriginal: "acta_comite_carrera.docx", tamano: "245 KB", estado: "CONVIRTIENDO", progreso: 65 },
-  { id: "e2", recomendacionId: "r2", nombreOriginal: "propuesta_optativas.xlsx", tamano: "88 KB", estado: "SUBIENDO", progreso: 30 },
-  { id: "e3", recomendacionId: "r2", nombreOriginal: "foto_reunion_comite.jpg", tamano: "1.2 MB", estado: "LISTO", progreso: 100 },
-  { id: "e4", recomendacionId: "r2", nombreOriginal: "presentacion_consejo.pptx", tamano: "4.8 MB", estado: "ERROR", progreso: 0, mensajeError: "No se pudo convertir. Guárdalo como PDF y reintenta." },
-];
-
-export const EVIDENCIAS_META = [
-  { nombre: "minuta_diagnostico.pdf", fecha: "02/07/2025" },
-  { nombre: "encuesta_egresados.pdf", fecha: "28/06/2025" },
-  { nombre: "lista_asistencia.pdf", fecha: "28/06/2025" },
 ];
 
 // ---------- Bloque Informe: mismos casos que db/datos_desarrollo.sql del backend ----------
@@ -278,9 +264,9 @@ export const DEVOLUCIONES: Devolucion[] = [
 export const NOTIFICACIONES: Notificacion[] = [
   { id: "n1", tipo: "VENCIMIENTO", titulo: "Meta vencida", descripcion: "“Curso de ciencia de datos” venció el 05/11/2026. Actualiza su avance.", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/metas" },
   { id: "n2", tipo: "META", titulo: "Meta próxima", descripcion: "“Actualizar optativas” vence en 9 días (50% esperado).", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/metas" },
-  { id: "n3", tipo: "DEVOLUCION", titulo: "Plan devuelto", descripcion: "La Administradora devolvió tu plan con 3 observaciones.", fecha: "Ayer, 17:40", leida: false, enlace: "/licenciatura/observaciones" },
+  { id: "n3", tipo: "DEVOLUCION", titulo: "Plan devuelto", descripcion: "La Administradora devolvió tu plan con 3 observaciones.", fecha: "Ayer, 17:40", leida: false, enlace: "/licenciatura/plan" },
   { id: "n4", tipo: "META", titulo: "Meta próxima", descripcion: "“Contratación de 2 PTC” vence en 19 días (90% esperado).", fecha: "08/11/2026", leida: true, enlace: "/licenciatura/metas" },
-  { id: "n5", tipo: "DEVOLUCION", titulo: "Informe validado", descripcion: "Tu informe 2026-1 fue validado sin observaciones.", fecha: "28/10/2026", leida: true, enlace: "/licenciatura/observaciones" },
+  { id: "n5", tipo: "DEVOLUCION", titulo: "Informe validado", descripcion: "Tu informe 2026-1 fue validado sin observaciones.", fecha: "28/10/2026", leida: true, enlace: "/licenciatura/informe" },
 ];
 
 export const BITACORA: EventoBitacora[] = [

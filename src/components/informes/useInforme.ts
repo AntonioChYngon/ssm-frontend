@@ -67,7 +67,13 @@ const useDocumento = <T,>(cargar: () => Promise<T>, integrar: (actual: T, inform
 
   const cerrarAviso = useCallback(() => setEstado((e) => ({ ...e, aviso: null })), []);
 
-  return { ...estado, recargar: () => recargar(), ejecutar, cerrarAviso };
+  /** Integra un informe que ya devolvió el servidor (p. ej. al terminar una subida con su propio manejo de errores). */
+  const aplicar = useCallback(
+    (informe: InformeDetalle) => setEstado((e) => ({ ...e, datos: e.datos ? integrar(e.datos, informe) : e.datos })),
+    [integrar],
+  );
+
+  return { ...estado, recargar: () => recargar(), ejecutar, aplicar, cerrarAviso };
 };
 
 const reemplazar = (_: InformeDetalle, informe: InformeDetalle) => informe;
