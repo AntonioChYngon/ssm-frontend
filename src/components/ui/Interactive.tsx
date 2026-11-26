@@ -36,10 +36,12 @@ type ConfirmModalProps = {
   confirmLabel: string;
   onCancel: () => void;
   onConfirm: (motivo?: string) => void;
+  /** Texto del campo de motivo cuando tipo = "devolver" (p. ej. reabrir un informe). */
+  etiquetaMotivo?: string;
 };
 
 // Confirmación obligatoria antes de acciones con consecuencias (Validar / Devolver).
-export const ConfirmModal = ({ open, tipo, titulo, mensaje, confirmLabel, onCancel, onConfirm }: ConfirmModalProps) => {
+export const ConfirmModal = ({ open, tipo, titulo, mensaje, confirmLabel, onCancel, onConfirm, etiquetaMotivo = "Motivo de la devolución" }: ConfirmModalProps) => {
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState("");
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +59,7 @@ export const ConfirmModal = ({ open, tipo, titulo, mensaje, confirmLabel, onCanc
   const validar = tipo === "validar";
   const confirm = () => {
     if (!validar && motivo.trim().length < 10) {
-      setError("Escribe el motivo de la devolución (al menos 10 caracteres).");
+      setError(`Escribe el ${etiquetaMotivo.toLowerCase()} (al menos 10 caracteres).`);
       return;
     }
     onConfirm(validar ? undefined : motivo.trim());
@@ -73,7 +75,7 @@ export const ConfirmModal = ({ open, tipo, titulo, mensaje, confirmLabel, onCanc
         <p className="t-muted" style={{ margin: 0 }}>{mensaje}</p>
         {!validar && (
           <div className={["field", error ? "field--error" : ""].join(" ")}>
-            <label htmlFor="motivo" className="field__label">Motivo de la devolución (obligatorio)</label>
+            <label htmlFor="motivo" className="field__label">{etiquetaMotivo} (obligatorio)</label>
             <div className="field__control field__control--area">
               <textarea id="motivo" value={motivo} onChange={(event) => setMotivo(event.target.value)} placeholder="Escribe las observaciones generales…" />
             </div>

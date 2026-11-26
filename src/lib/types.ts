@@ -245,6 +245,9 @@ export type MiInforme = {
   anteriores: InformeResumen[];
 };
 
+/** HU-08 · POST /informes/:id/devolver y /reabrir */
+export type DevolverInformePayload = { motivo: string; observaciones?: Array<{ recomendacionId: string; comentario: string }> };
+
 export type FiltrosInformes = { estado?: EstadoInforme; licenciaturaId?: string; cicloId?: string; periodo?: string };
 
 export type ObservacionItem = { recomendacion: string; texto: string; atendida: boolean };

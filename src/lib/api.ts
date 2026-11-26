@@ -10,6 +10,7 @@ import type {
   CicloPayload,
   CoordinacionOpcion,
   CrearUsuarioPayload,
+  DevolverInformePayload,
   DevolverPlanPayload,
   FiltrosInformes,
   GuardarMetasPayload,
@@ -520,4 +521,56 @@ export const obtenerMiInforme = async (): Promise<MiInforme> => {
 export const descargarEvidencia = async (enlace: string): Promise<Blob> => {
   if (USE_MOCKS) throw new ApiError(501, "Abrir evidencias guardadas requiere conectar el backend.");
   return requestBlob(enlace, "No pudimos abrir la evidencia.");
+};
+
+// ---------- HU-08 · Revisión del informe (solo Administrador) ----------
+
+/** Modo demostración: aplica la decisión sobre la copia en memoria del informe. */
+const decidirDemo = async (id: string, cambio: (i: InformeDetalle) => void): Promise<InformeDetalle> => {
+  await esperar();
+  const informe = mock.INFORMES_DETALLE.find((i) => i.id === id);
+  if (!informe) throw new ApiError(404, "Informe no encontrado.");
+  cambio(informe);
+  return clonar(informe);
+};
+
+const revisionDemo = (decision: "APROBADO" | "DEVUELTO", comentario: string | null, datos?: DevolverInformePayload) => ({
+  id: crypto.randomUUID(), decision, comentario, revisor: "Administración SSM",
+  fecha: new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date()),
+  observaciones: datos?.observaciones ?? [],
+});
+
+const devolverDemo = (i: InformeDetalle, comentario: string, datos: DevolverInformePayload) => {
+  const revision = revisionDemo("DEVUELTO", comentario, datos);
+  Object.assign(i, { estado: "DEVUELTO", aprobadoEn: null, editable: true, bloqueo: null, ultimaRevision: revision, revisiones: [...i.revisiones, revision] });
+  i.avances.forEach((a) => { a.observacionRevision = datos.observaciones?.find((o) => o.recomendacionId === a.recomendacionId)?.comentario ?? null; });
+};
+
+/** POST /informes/:id/validar */
+export const validarInforme = async (id: string, comentario?: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/validar`, { method: "POST", body: JSON.stringify({ comentario }) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "EN_REVISION") throw new ApiError(409, "Solo se pueden validar informes que están en revisión.");
+    const revision = revisionDemo("APROBADO", comentario?.trim() || null);
+    Object.assign(i, { estado: "APROBADO", aprobadoEn: new Date().toISOString(), editable: false, bloqueo: "APROBADO", ultimaRevision: revision, revisiones: [...i.revisiones, revision] });
+    i.avances.forEach((a) => { a.observacionRevision = null; });
+  });
+};
+
+/** POST /informes/:id/devolver */
+export const devolverInforme = async (id: string, datos: DevolverInformePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/devolver`, { method: "POST", body: JSON.stringify(datos) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "EN_REVISION") throw new ApiError(409, "Solo se pueden devolver informes que están en revisión.");
+    devolverDemo(i, datos.motivo, datos);
+  });
+};
+
+/** POST /informes/:id/reabrir (informe aprobado; motivo obligatorio). */
+export const reabrirInforme = async (id: string, datos: DevolverInformePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/reabrir`, { method: "POST", body: JSON.stringify(datos) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "APROBADO") throw new ApiError(409, "Solo se pueden reabrir informes aprobados.");
+    devolverDemo(i, `Reapertura: ${datos.motivo}`, datos);
+  });
 };
