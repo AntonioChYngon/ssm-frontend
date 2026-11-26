@@ -253,7 +253,14 @@ export type EnlacePayload = { url: string; nombre?: string };
 /** HU-08 · POST /informes/:id/devolver y /reabrir */
 export type DevolverInformePayload = { motivo: string; observaciones?: Array<{ recomendacionId: string; comentario: string }> };
 
-export type FiltrosInformes = { estado?: EstadoInforme; licenciaturaId?: string; cicloId?: string; periodo?: string };
+export type FiltrosInformes = {
+  estado?: EstadoInforme;
+  licenciaturaId?: string;
+  /** HU-13: ids separados por coma. */
+  licenciaturaIds?: string;
+  cicloId?: string;
+  periodo?: string;
+};
 
 export type ObservacionItem = { recomendacion: string; texto: string; atendida: boolean };
 

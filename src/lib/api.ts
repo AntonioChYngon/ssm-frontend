@@ -182,6 +182,11 @@ export const marcarTodasLasNotificacionesLeidas = async (): Promise<void> => {
 
 const esperar = (ms = 300) => new Promise((resolver) => setTimeout(resolver, ms));
 
+/** HU-13 en modo demostración: ids del catálogo de ejemplo (1 Actuaría, 2 Derecho, 3 Economía, 4 Sociología) → nombres. */
+const LICENCIATURAS_DEMO = ["Actuaría", "Derecho", "Economía", "Sociología"];
+const nombresDemo = (licenciaturaIds?: string) =>
+  licenciaturaIds ? licenciaturaIds.split(",").map((id) => LICENCIATURAS_DEMO[Number(id) - 1]).filter((n): n is string => Boolean(n)) : null;
+
 /** HU-02 · POST /auth/restablecer (enlace del correo de recuperación) */
 export const restablecerContrasena = async (token: string, nueva: string): Promise<void> => {
   if (!USE_MOCKS) await request("/auth/restablecer", { method: "POST", body: JSON.stringify({ token, nueva }) });
@@ -297,10 +302,11 @@ const cicloDemo = (datos: CicloPayload, id: string): CicloAdministracion => {
 };
 
 /** HU-18 · GET /ciclos */
-export const listarCiclos = async (): Promise<CicloAdministracion[]> => {
-  if (!USE_MOCKS) return request<CicloAdministracion[]>("/ciclos");
+export const listarCiclos = async (licenciaturaIds?: string): Promise<CicloAdministracion[]> => {
+  if (!USE_MOCKS) return request<CicloAdministracion[]>(`/ciclos${consulta({ licenciaturaIds })}`);
   await esperar(150);
-  return structuredClone(ciclosDemo);
+  const nombres = nombresDemo(licenciaturaIds);
+  return structuredClone(ciclosDemo).filter((c) => !nombres || nombres.includes(c.licenciatura.nombre));
 };
 
 /** HU-18 · POST /ciclos: inicia el ciclo y crea su carpeta /Evidencias/[Licenciatura]/[nombre]/ */
@@ -355,11 +361,12 @@ const exigirEditableDemo = () => {
 };
 
 /** HU-04 · GET /planes: Administrador = todos (incluidos borradores); Captura y Auxiliar = su licenciatura. */
-export const listarPlanes = async (): Promise<PlanResumen[]> => {
-  if (!USE_MOCKS) return request<PlanResumen[]>("/planes");
+export const listarPlanes = async (licenciaturaIds?: string): Promise<PlanResumen[]> => {
+  if (!USE_MOCKS) return request<PlanResumen[]>(`/planes${consulta({ licenciaturaIds })}`);
   await esperar(150);
   const usuario = leerUsuarioSesion();
-  const todos = mock.PLANES.map((p) => (p.id === planDemo.id ? resumenDemo() : p));
+  const nombres = nombresDemo(licenciaturaIds);
+  const todos = mock.PLANES.map((p) => (p.id === planDemo.id ? resumenDemo() : p)).filter((p) => !nombres || nombres.includes(p.licenciatura));
   return usuario && usuario.rol !== "ADMINISTRADOR" ? todos.filter((p) => p.licenciatura === (usuario.licenciatura ?? "Actuaría")) : todos;
 };
 
@@ -508,7 +515,10 @@ const consulta = (filtros: Record<string, string | number | undefined>) => {
 export const listarInformes = async (filtros: FiltrosInformes = {}): Promise<InformeResumen[]> => {
   if (!USE_MOCKS) return request<InformeResumen[]>(`/informes${consulta(filtros)}`);
   await esperar(150);
-  return mock.INFORMES.filter((i) => (!filtros.estado || i.estado === filtros.estado) && (!filtros.periodo || i.periodo === filtros.periodo));
+  const nombres = nombresDemo(filtros.licenciaturaIds);
+  return mock.INFORMES.filter(
+    (i) => (!filtros.estado || i.estado === filtros.estado) && (!filtros.periodo || i.periodo === filtros.periodo) && (!nombres || nombres.includes(i.licenciatura)),
+  );
 };
 
 /** GET /informes/:id */
@@ -732,9 +742,11 @@ export const listarBitacora = async (filtros: FiltrosBitacora = {}): Promise<Pag
   if (!USE_MOCKS) return request<PaginaBitacora>(`/auditoria${consulta(filtros)}`);
   await esperar(150);
   const texto = filtros.q?.trim().toLowerCase();
+  const nombres = nombresDemo(filtros.licenciaturaIds);
   const eventos = mock.BITACORA.filter(
     (e) =>
       (!filtros.rol || e.rol === filtros.rol) &&
+      (!nombres || (e.licenciatura !== null && nombres.includes(e.licenciatura))) &&
       (!texto || `${e.usuario.nombre} ${e.usuario.correo} ${e.campo} ${e.anterior ?? ""} ${e.nuevo ?? ""}`.toLowerCase().includes(texto)),
   );
   return { total: eventos.length, pagina: 1, limite: eventos.length, eventos };

@@ -4,6 +4,7 @@
 // campo, valor anterior y nuevo. Filtros por búsqueda, rol, tipo de acción y fechas; carga por páginas.
 import { useCallback, useEffect, useState } from "react";
 import { Cambio, rolLegible } from "@/components/auditoria/HistorialCambios";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { Button } from "@/components/ui/Button";
 import { Alert, Avatar, Card, EmptyState, PageTitle, Tag } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
@@ -43,6 +44,8 @@ const BitacoraPage = () => {
   const [pagina, setPagina] = useState(1);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // HU-13: licenciatura de lo que se modificó (una, varias o todas).
+  const licenciaturas = useLicenciaturasEnUrl();
 
   const filtros = useCallback(
     (p: number): FiltrosBitacora => ({
@@ -51,10 +54,11 @@ const BitacoraPage = () => {
       area: AREAS.find((a) => a.label === area)?.valor,
       desde: desde || undefined,
       hasta: hasta || undefined,
+      licenciaturaIds: licenciaturas.parametro,
       pagina: p,
       limite: LIMITE,
     }),
-    [busqueda, rol, area, desde, hasta],
+    [busqueda, rol, area, desde, hasta, licenciaturas.parametro],
   );
 
   const cargar = useCallback(async (p: number) => {
@@ -74,9 +78,10 @@ const BitacoraPage = () => {
 
   // Al cambiar un filtro se vuelve a la primera página (la búsqueda espera a que se deje de escribir).
   useEffect(() => {
+    if (!licenciaturas.listo) return;
     const espera = window.setTimeout(() => void cargar(1), 300);
     return () => window.clearTimeout(espera);
-  }, [cargar]);
+  }, [cargar, licenciaturas.listo]);
 
   const dias = [...new Set(eventos.map((e) => diaDe(e.fecha)))];
 
@@ -88,6 +93,7 @@ const BitacoraPage = () => {
         subtitle="Registro inmutable de los cambios en el sistema: quién, con qué rol, qué campo y de qué valor a cuál."
       />
       <div className="row row--end row--responsive">
+        <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Usuario, correo, campo o valor" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
         <div style={{ width: 170 }}><SelectField label="Rol" options={ROLES.map((r) => r.label)} value={rol} onChange={(e) => setRol(e.target.value)} /></div>
         <div style={{ width: 230 }}><SelectField label="Tipo de acción" options={AREAS.map((a) => a.label)} value={area} onChange={(e) => setArea(e.target.value)} /></div>

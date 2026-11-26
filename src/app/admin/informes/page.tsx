@@ -1,8 +1,8 @@
 "use client";
 
-// HU-08 · Informes de seguimiento recibidos (datos reales de GET /informes). La línea B puede ampliar los filtros
-// y HU-13 cambiará el filtro de licenciatura por el selector de varias licenciaturas.
+// HU-08 · Informes de seguimiento recibidos (GET /informes), con filtro de licenciaturas (HU-13), semestre y estado.
 import { useEffect, useState } from "react";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { LinkButton } from "@/components/ui/Button";
 import { Alert, Badge, DataTable, KpiCard, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
@@ -29,12 +29,17 @@ const InformesPage = () => {
   const [semestre, setSemestre] = useState(TODOS_SEMESTRES);
   const [busqueda, setBusqueda] = useState("");
 
+  // HU-13: una, varias o todas las licenciaturas (se guarda en la URL).
+  const licenciaturas = useLicenciaturasEnUrl();
+
   useEffect(() => {
-    listarInformes()
+    if (!licenciaturas.listo) return;
+    setCargando(true);
+    listarInformes({ licenciaturaIds: licenciaturas.parametro })
       .then(setInformes)
       .catch((e) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los informes."))
       .finally(() => setCargando(false));
-  }, []);
+  }, [licenciaturas.listo, licenciaturas.parametro]);
 
   const cuenta = (e: EstadoInforme) => informes.filter((i) => i.estado === e).length;
   const opciones = FILTROS.map((f) => `${f.label} (${f.estado ? cuenta(f.estado) : informes.length})`);
@@ -61,6 +66,7 @@ const InformesPage = () => {
         <KpiCard tono="verde" titulo="Validados" valor={String(cuenta("APROBADO"))} detalle="aprobados" icon="check" />
       </div>
       <div className="row row--end row--responsive">
+        <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Licenciatura" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
         <div style={{ width: 220 }}><SelectField label="Semestre" options={semestres} value={semestre} onChange={(e) => setSemestre(e.target.value)} /></div>
       </div>
