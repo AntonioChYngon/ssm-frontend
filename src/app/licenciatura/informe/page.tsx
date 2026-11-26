@@ -10,6 +10,7 @@ import { TablaAvances } from "@/components/informes/TablaAvances";
 import { MENSAJE_CAMBIO_ESTADO, useMiInforme } from "@/components/informes/useInforme";
 import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { Button, IconButton, LinkButton } from "@/components/ui/Button";
+import { DescargasInforme } from "@/components/informes/DescargasInforme";
 import { Alert, Badge, Card, DataTable, EmptyState, PageTitle } from "@/components/ui/Display";
 import { ConfirmModal } from "@/components/ui/Interactive";
 import { ApiError, enviarInforme, guardarAvance, iniciarInforme, obtenerInforme, quitarEvidenciaInforme } from "@/lib/api";
@@ -49,6 +50,7 @@ const InformeLicenciaturaPage = () => {
   const { mio, cargando, error, aviso, ocupado, ejecutar, aplicar, recargar, cerrarAviso } = useMiInforme();
   const [confirmarEnvio, setConfirmarEnvio] = useState(false);
   const [exito, setExito] = useState<string | null>(null);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
   const [conflicto, setConflicto] = useState<string | null>(null);
   const [anterior, setAnterior] = useState<InformeResumen | null>(null);
   // Filas con cambios sin guardar: se guardan en una referencia para no volver a pintar en cada tecla.
@@ -105,11 +107,23 @@ const InformeLicenciaturaPage = () => {
         crumbs={[{ label: "Inicio", href: "/licenciatura/dashboard" }, { label: "Informe de seguimiento" }]}
         title={informe ? `Informe de seguimiento ${informe.periodo}` : "Informe de seguimiento"}
         subtitle={`Lic. en ${ciclo.licenciatura} · ${ciclo.organismo} · Ciclo ${ciclo.nombre}${periodo ? ` · Semestre ${periodo.nombre} (corte al ${fechaLegible(periodo.fechaCorte)})` : ""}`}
-        actions={informe && editable ? (
-          <Button icon="enviar" disabled={ocupado || pendientes > 0} onClick={() => setConfirmarEnvio(true)}>Enviar a revisión</Button>
+        actions={informe ? (
+          <>
+            {/* HU-09: el informe con membrete y evidencias como hipervínculos, en PDF y Word. */}
+            <DescargasInforme
+              informe={informe}
+              onAviso={(a) => {
+                setErrorDescarga(a.tipo === "error" ? a.texto : null);
+                if (a.tipo === "exito") setExito(a.texto);
+              }}
+              disabled={ocupado}
+            />
+            {editable && <Button icon="enviar" disabled={ocupado || pendientes > 0} onClick={() => setConfirmarEnvio(true)}>Enviar a revisión</Button>}
+          </>
         ) : undefined}
       />
       {exito && <Alert tipo="exito">{exito}</Alert>}
+      {errorDescarga && <Alert tipo="error">{errorDescarga}</Alert>}
       {conflicto && <Alert tipo="advertencia">{conflicto}</Alert>}
       {aviso && <Alert tipo="error"><span>{aviso}</span> <button type="button" className="link-boton" onClick={cerrarAviso}>Cerrar</button></Alert>}
       {!ciclo.activo && <Alert tipo="advertencia">{ciclo.mensaje}</Alert>}
