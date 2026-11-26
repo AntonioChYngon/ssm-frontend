@@ -3,6 +3,7 @@
 import * as mock from "./mock-data";
 import type {
   AtencionLicenciatura,
+  AvancePayload,
   CambiarAsignacionPayload,
   Actividad,
   Catalogos,
@@ -11,6 +12,8 @@ import type {
   CoordinacionOpcion,
   CrearUsuarioPayload,
   DevolverInformePayload,
+  EnlacePayload,
+  EvidenciaInforme,
   DevolverPlanPayload,
   FiltrosInformes,
   GuardarMetasPayload,
@@ -573,4 +576,144 @@ export const reabrirInforme = async (id: string, datos: DevolverInformePayload):
     if (i.estado !== "APROBADO") throw new ApiError(409, "Solo se pueden reabrir informes aprobados.");
     devolverDemo(i, `Reapertura: ${datos.motivo}`, datos);
   });
+};
+
+// ---------- HU-07 · Captura del informe (Captura y Auxiliar) ----------
+
+/** Modo demostración: el informe de la coordinación vive en memoria (se arma con el plan de ejemplo de Actuaría). */
+let miInformeDemo: InformeDetalle | null = null;
+
+const recalcularDemo = (i: InformeDetalle) => {
+  i.conAvance = i.avances.filter((a) => a.porcentaje !== null).length;
+  i.evidencias = i.avances.reduce((total, a) => total + a.evidencias.length, 0);
+  i.avances.forEach((a) => { a.evidenciaObligatoria = a.porcentaje === 100; });
+};
+
+const editableDemo = (): InformeDetalle => {
+  if (!miInformeDemo) throw new ApiError(404, "Informe no encontrado.");
+  if (!miInformeDemo.editable) throw new ApiError(409, "El informe está en revisión o ya fue aprobado; no se puede editar.");
+  return miInformeDemo;
+};
+
+const avanceDemo = (recomendacionId: string) => {
+  const a = editableDemo().avances.find((x) => x.recomendacionId === recomendacionId);
+  if (!a) throw new ApiError(404, "La recomendación no pertenece al plan de este informe.");
+  return a;
+};
+
+const evidenciaDemo = (recomendacionId: string, datos: Pick<EvidenciaInforme, "origen" | "nombre" | "tamano" | "enlace" | "externo">) => {
+  const a = avanceDemo(recomendacionId);
+  if (a.porcentaje === null) throw new ApiError(400, `Captura primero el % de avance de la recomendación ${a.numero} y después agrega su evidencia.`);
+  a.evidencias.push({ id: crypto.randomUUID(), cargadaPor: "Coordinación (demostración)", cargadaEn: new Date().toISOString(), ...datos });
+  recalcularDemo(editableDemo());
+  return clonar(editableDemo());
+};
+
+/** POST /ciclos/:cicloId/informes · "Iniciar informe del semestre" (si ya existe, devuelve el mismo). */
+export const iniciarInforme = async (cicloId: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/ciclos/${cicloId}/informes`, { method: "POST" });
+  await esperar();
+  if (!miInformeDemo) {
+    const periodo = mock.MI_INFORME.periodo!;
+    miInformeDemo = {
+      id: "inf-act-2027-1", informeId: "i-act-2027-1", cicloId, licenciaturaId: "1", licenciatura: mock.CICLO_ACTUARIA.licenciatura,
+      ciclo: mock.CICLO_ACTUARIA.nombre, periodo: periodo.nombre, fechaInicio: periodo.fechaInicio, fechaFin: periodo.fechaFin, fechaCorte: periodo.fechaCorte,
+      estado: "BORRADOR", enviadoEn: null, aprobadoEn: null, recomendaciones: mock.RECOMENDACIONES.length, conAvance: 0, evidencias: 0,
+      organismo: mock.CICLO_ACTUARIA.organismo, vigenciaInicio: mock.CICLO_ACTUARIA.vigenciaInicio, vigenciaFin: mock.CICLO_ACTUARIA.vigenciaFin,
+      editable: true, bloqueo: null, ultimaRevision: null, revisiones: [],
+      avances: mock.RECOMENDACIONES.map((r) => {
+        const vencidas = r.metas.filter((m) => m.fechaCompromiso && m.fechaCompromiso <= periodo.fechaCorte && m.porcentajeEsperado !== null);
+        return {
+          recomendacionId: r.id, numero: r.numero, categoria: r.categoria, indicador: r.indicador, recomendacion: r.descripcion, fechaCumplimiento: r.fechaCumplimiento,
+          metas: r.metas.map((m) => ({ descripcion: m.descripcion, fechaCompromiso: m.fechaCompromiso, porcentajeEsperado: m.porcentajeEsperado })),
+          esperadoAlCorte: vencidas.length ? Math.max(...vencidas.map((m) => m.porcentajeEsperado as number)) : null,
+          porcentaje: null, observaciones: null, evidenciaObligatoria: false, observacionRevision: null, evidencias: [],
+        };
+      }),
+    };
+  }
+  mock.MI_INFORME.informe = miInformeDemo;
+  return clonar(miInformeDemo);
+};
+
+/** PUT /informes/:id/avances/:recomendacionId · % entero de 0 a 100 y observaciones. */
+export const guardarAvance = async (id: string, recomendacionId: string, datos: AvancePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/avances/${recomendacionId}`, { method: "PUT", body: JSON.stringify(datos) });
+  await esperar(200);
+  const a = avanceDemo(recomendacionId);
+  a.porcentaje = datos.porcentaje;
+  a.observaciones = datos.observaciones?.trim() || null;
+  recalcularDemo(editableDemo());
+  return clonar(editableDemo());
+};
+
+/** POST /informes/:id/avances/:recomendacionId/enlaces · Plan B. */
+export const agregarEnlaceEvidencia = async (id: string, recomendacionId: string, datos: EnlacePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/avances/${recomendacionId}/enlaces`, { method: "POST", body: JSON.stringify(datos) });
+  await esperar(200);
+  return evidenciaDemo(recomendacionId, { origen: "URL", nombre: datos.nombre?.trim() || new URL(datos.url).hostname, tamano: null, enlace: datos.url.trim(), externo: true });
+};
+
+/**
+ * POST /informes/:id/avances/:recomendacionId/evidencias (multipart, campo "archivo").
+ * Usa XMLHttpRequest porque fetch no informa el progreso de la subida. `alProgreso` recibe 0–100;
+ * al llegar a 100 el servidor está convirtiendo a PDF.
+ */
+export const subirEvidenciaInforme = (id: string, recomendacionId: string, archivo: File, alProgreso: (porcentaje: number) => void): Promise<InformeDetalle> => {
+  if (USE_MOCKS) {
+    return new Promise((resolver, rechazar) => {
+      let avance = 0;
+      const timer = window.setInterval(() => {
+        avance = Math.min(100, avance + 25);
+        alProgreso(avance);
+        if (avance < 100) return;
+        window.clearInterval(timer);
+        try {
+          resolver(evidenciaDemo(recomendacionId, { origen: "ARCHIVO", nombre: archivo.name, tamano: archivo.size, enlace: "/evidencias/demo/archivo", externo: false }));
+        } catch (error) {
+          rechazar(error);
+        }
+      }, 250);
+    });
+  }
+  return new Promise((resolver, rechazar) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/informes/${id}/avances/${recomendacionId}/evidencias`);
+    const token = window.sessionStorage.getItem(CLAVE_TOKEN);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) alProgreso(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => {
+      const cuerpo = (() => { try { return JSON.parse(xhr.responseText) as unknown; } catch { return {}; } })();
+      if (xhr.status >= 200 && xhr.status < 300) return resolver(cuerpo as InformeDetalle);
+      const mensaje = (cuerpo as { message?: string | string[] }).message;
+      rechazar(new ApiError(xhr.status, (Array.isArray(mensaje) ? mensaje[0] : mensaje) ?? "No pudimos subir el archivo."));
+    };
+    xhr.onerror = () => rechazar(new ApiError(0, "Se perdió la conexión al subir el archivo. Reintenta."));
+    const datos = new FormData();
+    datos.append("archivo", archivo);
+    xhr.send(datos);
+  });
+};
+
+/** DELETE /evidencias/:id · solo con el informe editable; el archivo se conserva en la carpeta. */
+export const quitarEvidenciaInforme = async (evidenciaId: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/evidencias/${evidenciaId}`, { method: "DELETE" });
+  await esperar(200);
+  const informe = editableDemo();
+  informe.avances.forEach((a) => { a.evidencias = a.evidencias.filter((e) => e.id !== evidenciaId); });
+  recalcularDemo(informe);
+  return clonar(informe);
+};
+
+/** POST /informes/:id/enviar · revisa que esté completo y avisa a la Administración (HU-11). */
+export const enviarInforme = async (id: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/enviar`, { method: "POST" });
+  await esperar();
+  const informe = editableDemo();
+  const faltan = informe.avances
+    .map((a) => (a.porcentaje === null ? `Recomendación ${a.numero}: falta el % de avance` : a.porcentaje === 100 && a.evidencias.length === 0 ? `Recomendación ${a.numero}: falta al menos una evidencia (está al 100 %)` : null))
+    .filter(Boolean);
+  if (faltan.length) throw new ApiError(400, `Completa el informe antes de enviarlo. ${faltan.join("; ")}.`);
+  Object.assign(informe, { estado: "EN_REVISION", editable: false, bloqueo: "EN_REVISION", enviadoEn: new Date().toISOString() });
+  return clonar(informe);
 };

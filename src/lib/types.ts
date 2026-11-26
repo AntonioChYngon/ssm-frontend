@@ -245,6 +245,11 @@ export type MiInforme = {
   anteriores: InformeResumen[];
 };
 
+/** HU-07 · PUT /informes/:id/avances/:recomendacionId */
+export type AvancePayload = { porcentaje: number; observaciones?: string };
+/** HU-07 · POST /informes/:id/avances/:recomendacionId/enlaces */
+export type EnlacePayload = { url: string; nombre?: string };
+
 /** HU-08 · POST /informes/:id/devolver y /reabrir */
 export type DevolverInformePayload = { motivo: string; observaciones?: Array<{ recomendacionId: string; comentario: string }> };
 
