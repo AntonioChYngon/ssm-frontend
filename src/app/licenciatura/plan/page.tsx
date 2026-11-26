@@ -5,8 +5,9 @@ import { Button, IconButton, LinkButton } from "@/components/ui/Button";
 import { Alert, Badge, Card, DataTable, EmptyState, PageTitle } from "@/components/ui/Display";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/Interactive";
+import { DescargasPlan } from "@/components/planes/DescargasPlan";
 import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
-import { descargarReportePlan, eliminarRecomendacion, enviarPlan, guardarRecomendacion, obtenerCatalogos, obtenerMiPlan, usaMocks } from "@/lib/api";
+import { eliminarRecomendacion, enviarPlan, guardarRecomendacion, obtenerCatalogos, obtenerMiPlan, usaMocks } from "@/lib/api";
 import { ESTADO_PLAN_BADGE, type ItemCatalogo, type MetaPayload, type MiPlan, type PlanDetalle, type RecomendacionPayload, type RecomendacionPlan } from "@/lib/types";
 
 const SIN_CATEGORIA = "Selecciona una categoría";
@@ -267,32 +268,6 @@ const CapturaPlanPage = () => {
     }
   };
 
-  const generarReporte = async () => {
-    if (!plan) return;
-    setOcupado(true);
-    setAviso(null);
-    try {
-      if (usaMocks()) {
-        imprimirReporteDemo(plan);
-      } else {
-        const archivo = await descargarReportePlan(plan.id);
-        const url = URL.createObjectURL(archivo);
-        const enlace = document.createElement("a");
-        enlace.href = url;
-        enlace.download = `Plan_${plan.licenciatura}_${plan.ciclo.replace(/[–\s]+/g, "-")}.pdf`;
-        document.body.appendChild(enlace);
-        enlace.click();
-        enlace.remove();
-        URL.revokeObjectURL(url);
-      }
-      setAviso({ tipo: "exito", texto: usaMocks() ? "Se abrió el reporte para imprimir o guardarlo como PDF." : "Reporte PDF descargado." });
-    } catch (error) {
-      setAviso({ tipo: "error", texto: mensajeDe(error) });
-    } finally {
-      setOcupado(false);
-    }
-  };
-
   const categoriaNombre = categorias.find((c) => c.id === form.categoriaId)?.nombre ?? SIN_CATEGORIA;
 
   return (
@@ -304,7 +279,7 @@ const CapturaPlanPage = () => {
         actions={
           <>
             {plan && <Badge estado={ESTADO_PLAN_BADGE[plan.estado]} />}
-            {plan && <Button variant="contorno" icon="descargar" onClick={() => void generarReporte()} disabled={ocupado || cargando}>Generar reporte PDF</Button>}
+            {plan && <DescargasPlan plan={plan} onAviso={setAviso} pdfDemo={() => imprimirReporteDemo(plan)} disabled={ocupado || cargando} />}
             <Button variant="contorno" icon="check" onClick={guardarBorrador} disabled={!editable || ocupado || cargando || !ciclo}>Guardar borrador</Button>
             <Button icon="enviar" onClick={pedirEnvio} disabled={!editable || ocupado || cargando || !ciclo}>Enviar a validación</Button>
           </>

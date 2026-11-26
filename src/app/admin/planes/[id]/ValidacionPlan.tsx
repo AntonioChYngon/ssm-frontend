@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/ui/Button";
 import { HistorialCambios } from "@/components/auditoria/HistorialCambios";
+import { DescargasPlan } from "@/components/planes/DescargasPlan";
 import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { Alert, Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { TextAreaField } from "@/components/ui/Field";
@@ -82,12 +83,18 @@ export const ValidacionPlan = ({ id }: { id: string }) => {
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Planes de mejora", href: "/admin/planes" }, { label: plan.licenciatura }]}
         title={`Plan de mejora · Lic. en ${plan.licenciatura}`}
         subtitle={`Organismo: ${plan.organismo} · Ciclo ${plan.ciclo} · Actualizado el ${plan.actualizado}`}
-        actions={enValidacion ? (
+        actions={
           <>
-            <Button variant="peligro" icon="mensaje" disabled={enviando} onClick={() => setModal("devolver")}>Devolver con observaciones</Button>
-            <Button icon="check" disabled={enviando} onClick={() => setModal("validar")}>Validar plan</Button>
+            {/* HU-06: el Administrador también descarga el plan con membrete para enviarlo al organismo o IEVA. */}
+            <DescargasPlan plan={plan} onAviso={(a) => (a.tipo === "error" ? setError(a.texto) : setError(null))} disabled={enviando} />
+            {enValidacion && (
+              <>
+                <Button variant="peligro" icon="mensaje" disabled={enviando} onClick={() => setModal("devolver")}>Devolver con observaciones</Button>
+                <Button icon="check" disabled={enviando} onClick={() => setModal("validar")}>Validar plan</Button>
+              </>
+            )}
           </>
-        ) : undefined}
+        }
       />
       {error && <Alert tipo="error">{error}</Alert>}
       {!enValidacion && (
