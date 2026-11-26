@@ -395,9 +395,31 @@ export const obtenerMiPlan = async (): Promise<MiPlan> => {
 };
 
 /** HU-04 · GET /planes/:id/pdf */
-export const descargarReportePlan = async (id: string): Promise<Blob> => {
-  if (USE_MOCKS) throw new ApiError(501, "El reporte PDF del servidor requiere conectar el backend.");
-  return requestBlob(`/planes/${encodeURIComponent(id)}/pdf`);
+export type FormatoReporte = "pdf" | "docx";
+
+/** HU-06 · GET /planes/:id/pdf o /planes/:id/docx: Plan de Mejora Continua con membrete institucional. */
+export const descargarReportePlan = async (id: string, formato: FormatoReporte = "pdf"): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, `El reporte ${formato === "docx" ? "en Word" : "PDF"} del servidor requiere conectar el backend.`);
+  return requestBlob(`/planes/${encodeURIComponent(id)}/${formato}`);
+};
+
+/** Nombre de archivo del reporte: Plan_de_Mejora_Actuaria_2024-2029.docx */
+export const nombreReportePlan = (plan: { licenciatura: string; ciclo: string }, formato: FormatoReporte) =>
+  `Plan_de_Mejora_${plan.licenciatura}_${plan.ciclo}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-]+/g, "_") + `.${formato}`;
+
+/** Ofrece un archivo al navegador para guardarlo. */
+export const guardarArchivo = (archivo: Blob, nombre: string) => {
+  const url = URL.createObjectURL(archivo);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombre;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  URL.revokeObjectURL(url);
 };
 
 /** HU-04 · Guardar borrador: POST /ciclos/:cicloId/plan/recomendaciones (nueva) o PUT /recomendaciones/:id (existente). */
