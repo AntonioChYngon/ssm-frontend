@@ -1,47 +1,101 @@
-import type { Metadata } from "next";
-import { Button, LinkButton } from "@/components/ui/Button";
-import { Badge, DataTable, KpiCard, PageTitle } from "@/components/ui/Display";
+"use client";
+
+// HU-08 · Informes de seguimiento recibidos (GET /informes), con filtro de licenciaturas (HU-13), semestre y estado.
+import { useEffect, useState } from "react";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
+import { LinkButton } from "@/components/ui/Button";
+import { Alert, Badge, DataTable, KpiCard, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
-import { INFORMES } from "@/lib/mock-data";
-import { ESTADO_DOCUMENTO_BADGE, type InformeResumen } from "@/lib/types";
+import { ChipGroup } from "@/components/ui/Interactive";
+import { ApiError, listarInformes } from "@/lib/api";
+import { fechaHoraLegible } from "@/lib/reglas-informe";
+import { ESTADO_INFORME_BADGE, type EstadoInforme, type InformeResumen } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Informes de seguimiento" };
+const FILTROS: { label: string; estado: EstadoInforme | null }[] = [
+  { label: "Todos", estado: null },
+  { label: "En revisión", estado: "EN_REVISION" },
+  { label: "Devueltos", estado: "DEVUELTO" },
+  { label: "Validados", estado: "APROBADO" },
+  { label: "Borrador", estado: "BORRADOR" },
+];
 
-const InformesPage = () => (
-  <>
-    <PageTitle
-      crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Informes de seguimiento" }]}
-      title="Informes de seguimiento"
-      subtitle="Informes periódicos que reportan el avance de cada plan validado."
-      actions={<Button variant="contorno" icon="descargar">Exportar</Button>}
-    />
-    <div className="grid-4">
-      <KpiCard tono="azul" titulo="Informes recibidos" valor="9" detalle="periodo 2026-2" icon="documento" />
-      <KpiCard tono="naranja" titulo="Por revisar" valor="2" detalle="el más antiguo hace 4 días" icon="reloj" />
-      <KpiCard tono="rojo" titulo="Devueltos" valor="1" detalle="esperando corrección" icon="mensaje" />
-      <KpiCard tono="verde" titulo="Validados" valor="6" detalle="67% del periodo" icon="check" />
-    </div>
-    <div className="row row--end row--responsive">
-      <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Licenciatura" /></div>
-      <div style={{ width: 180 }}><SelectField label="Periodo" options={["2026-2", "2026-1", "2025-2"]} /></div>
-      <div style={{ width: 200 }}><SelectField label="Estado" options={["Todos", "En revisión", "Devuelto", "Validado"]} /></div>
-    </div>
-    <DataTable<InformeResumen>
-      caption="Informes de seguimiento"
-      rows={INFORMES}
-      rowKey={(i) => i.id}
-      columns={[
-        { header: "Licenciatura", render: (i) => <span className="t-medium">{i.licenciatura}</span> },
-        { header: "Periodo", width: 120, render: (i) => i.periodo },
-        { header: "Metas reportadas", width: 170, render: (i) => `${i.metasReportadas} / ${i.metasTotales}` },
-        { header: "Fecha de envío", width: 160, render: (i) => i.fechaEnvio },
-        { header: "Estado", width: 140, render: (i) => <Badge estado={ESTADO_DOCUMENTO_BADGE[i.estado]} /> },
-        { header: "Acción", width: 140, render: (i) => i.estado === "EN_REVISION"
-          ? <LinkButton href={`/admin/informes/${i.id}`} icon="check">Revisar</LinkButton>
-          : <LinkButton href={`/admin/informes/${i.id}`} variant="contorno" icon="ver">Ver</LinkButton> },
-      ]}
-    />
-  </>
-);
+const TODOS_SEMESTRES = "Todos los semestres";
+
+const InformesPage = () => {
+  const [informes, setInformes] = useState<InformeResumen[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [estado, setEstado] = useState<EstadoInforme | null>(null);
+  const [semestre, setSemestre] = useState(TODOS_SEMESTRES);
+  const [busqueda, setBusqueda] = useState("");
+
+  // HU-13: una, varias o todas las licenciaturas (se guarda en la URL).
+  const licenciaturas = useLicenciaturasEnUrl();
+
+  useEffect(() => {
+    if (!licenciaturas.listo) return;
+    setCargando(true);
+    listarInformes({ licenciaturaIds: licenciaturas.parametro })
+      .then(setInformes)
+      .catch((e) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los informes."))
+      .finally(() => setCargando(false));
+  }, [licenciaturas.listo, licenciaturas.parametro]);
+
+  const cuenta = (e: EstadoInforme) => informes.filter((i) => i.estado === e).length;
+  const opciones = FILTROS.map((f) => `${f.label} (${f.estado ? cuenta(f.estado) : informes.length})`);
+  const semestres = [TODOS_SEMESTRES, ...[...new Set(informes.map((i) => i.periodo))].sort().reverse()];
+  const visibles = informes.filter(
+    (i) =>
+      (!estado || i.estado === estado) &&
+      (semestre === TODOS_SEMESTRES || i.periodo === semestre) &&
+      i.licenciatura.toLowerCase().includes(busqueda.trim().toLowerCase()),
+  );
+  const enviados = informes.filter((i) => i.estado !== "BORRADOR").length;
+
+  return (
+    <>
+      <PageTitle
+        crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Informes de seguimiento" }]}
+        title="Informes de seguimiento"
+        subtitle="Informes semestrales que reportan el avance de cada plan validado. Selecciona uno para revisarlo."
+      />
+      <div className="grid-4">
+        <KpiCard tono="azul" titulo="Informes enviados" valor={String(enviados)} detalle={`${informes.length} registrados`} icon="documento" />
+        <KpiCard tono="naranja" titulo="Por revisar" valor={String(cuenta("EN_REVISION"))} detalle="esperando validación" icon="reloj" />
+        <KpiCard tono="rojo" titulo="Devueltos" valor={String(cuenta("DEVUELTO"))} detalle="esperando corrección" icon="mensaje" />
+        <KpiCard tono="verde" titulo="Validados" valor={String(cuenta("APROBADO"))} detalle="aprobados" icon="check" />
+      </div>
+      <div className="row row--end row--responsive">
+        <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
+        <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Licenciatura" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
+        <div style={{ width: 220 }}><SelectField label="Semestre" options={semestres} value={semestre} onChange={(e) => setSemestre(e.target.value)} /></div>
+      </div>
+      {/* key: vuelve a montar los chips cuando llegan los conteos (ChipGroup guarda su selección internamente). */}
+      <ChipGroup key={cargando ? "cargando" : "listo"} label="Filtrar por estado" options={opciones} onChange={(o) => setEstado(FILTROS[opciones.indexOf(o)]?.estado ?? null)} />
+      {error && <Alert tipo="error">{error}</Alert>}
+      {cargando ? (
+        <p className="t-muted">Cargando informes…</p>
+      ) : (
+        <DataTable<InformeResumen>
+          caption="Informes de seguimiento"
+          rows={visibles}
+          rowKey={(i) => i.id}
+          columns={[
+            { header: "Licenciatura", render: (i) => <span className="t-medium">{i.licenciatura}</span> },
+            { header: "Semestre", width: 110, render: (i) => i.periodo },
+            { header: "Recomendaciones con avance", width: 220, render: (i) => <Progress value={i.recomendaciones ? Math.round((i.conAvance / i.recomendaciones) * 100) : 0} width={90} /> },
+            { header: "Evidencias", width: 110, render: (i) => i.evidencias },
+            { header: "Enviado", width: 160, render: (i) => fechaHoraLegible(i.enviadoEn) },
+            { header: "Estado", width: 140, render: (i) => <Badge estado={ESTADO_INFORME_BADGE[i.estado]} /> },
+            { header: "Acción", width: 140, render: (i) => i.estado === "EN_REVISION"
+              ? <LinkButton href={`/admin/informes/${i.id}`} icon="check">Revisar</LinkButton>
+              : <LinkButton href={`/admin/informes/${i.id}`} variant="contorno" icon="ver">Ver</LinkButton> },
+          ]}
+        />
+      )}
+      <span className="t-small t-muted">Mostrando {visibles.length} de {informes.length} informes</span>
+    </>
+  );
+};
 
 export default InformesPage;

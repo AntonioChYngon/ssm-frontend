@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { LinkButton } from "@/components/ui/Button";
 import { Alert, Badge, DataTable, PageTitle, Progress } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
@@ -28,12 +29,17 @@ const PlanesPage = () => {
   const [ciclo, setCiclo] = useState(TODOS_CICLOS);
   const [organismo, setOrganismo] = useState(TODOS_ORGANISMOS);
 
+  // HU-13: una, varias o todas las licenciaturas (se guarda en la URL).
+  const licenciaturas = useLicenciaturasEnUrl();
+
   useEffect(() => {
-    listarPlanes()
+    if (!licenciaturas.listo) return;
+    setCargando(true);
+    listarPlanes(licenciaturas.parametro)
       .then(setPlanes)
       .catch((e) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los planes."))
       .finally(() => setCargando(false));
-  }, []);
+  }, [licenciaturas.listo, licenciaturas.parametro]);
 
   const opciones = FILTROS.map((f) => `${f.label} (${f.estado ? planes.filter((p) => p.estado === f.estado).length : planes.length})`);
   const ciclos = [TODOS_CICLOS, ...new Set(planes.map((p) => p.ciclo))];
@@ -54,6 +60,7 @@ const PlanesPage = () => {
         subtitle="Todos los planes registrados por las licenciaturas. Selecciona uno para revisarlo y validarlo."
       />
       <div className="row row--end row--responsive">
+        <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
         <div className="grow"><TextField label="Buscar" icon="buscar" placeholder="Licenciatura u organismo acreditador" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
         <div style={{ width: 200 }}><SelectField label="Ciclo" options={ciclos} value={ciclo} onChange={(e) => setCiclo(e.target.value)} /></div>
         <div style={{ width: 240 }}><SelectField label="Organismo acreditador" options={organismos} value={organismo} onChange={(e) => setOrganismo(e.target.value)} /></div>

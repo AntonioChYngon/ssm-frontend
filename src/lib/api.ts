@@ -3,6 +3,7 @@
 import * as mock from "./mock-data";
 import type {
   AtencionLicenciatura,
+  AvancePayload,
   CambiarAsignacionPayload,
   Actividad,
   Catalogos,
@@ -10,11 +11,20 @@ import type {
   CicloPayload,
   CoordinacionOpcion,
   CrearUsuarioPayload,
+  DevolverInformePayload,
+  EventoAuditoria,
+  EnlacePayload,
+  EvidenciaInforme,
   DevolverPlanPayload,
+  FiltrosBitacora,
+  FiltrosInformes,
   GuardarMetasPayload,
+  InformeDetalle,
   InformeResumen,
+  MiInforme,
   MiPlan,
   Notificacion,
+  PaginaBitacora,
   PlanDetalle,
   PlanResumen,
   RecomendacionPayload,
@@ -93,13 +103,13 @@ const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   return (await response.json()) as T;
 };
 
-const requestBlob = async (path: string): Promise<Blob> => {
+const requestBlob = async (path: string, mensajePorDefecto = "No pudimos descargar el reporte."): Promise<Blob> => {
   const token = typeof window === "undefined" ? null : window.sessionStorage.getItem(CLAVE_TOKEN);
   const response = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { message?: string | string[] };
     const mensaje = Array.isArray(body.message) ? body.message[0] : body.message;
-    throw new ApiError(response.status, mensaje ?? "No pudimos descargar el reporte.");
+    throw new ApiError(response.status, mensaje ?? mensajePorDefecto);
   }
   return response.blob();
 };
@@ -152,8 +162,6 @@ export const listarCoordinaciones = async (): Promise<CoordinacionOpcion[]> => {
   }));
 };
 
-/** GET /informes */
-export const listarInformes = async (): Promise<InformeResumen[]> => (USE_MOCKS ? mock.INFORMES : request<InformeResumen[]>("/informes"));
 
 /** GET /notificaciones */
 export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MOCKS ? mock.NOTIFICACIONES : request<Notificacion[]>("/notificaciones"));
@@ -168,22 +176,16 @@ export const marcarTodasLasNotificacionesLeidas = async (): Promise<void> => {
   if (!USE_MOCKS) await request("/notificaciones/leidas", { method: "PATCH" });
 };
 
-/** POST /evidencias (multipart). El backend convierte a PDF y devuelve el estado. */
-export const subirEvidencia = async (metaId: string, archivo: File): Promise<void> => {
-  if (USE_MOCKS) return;
-  const body = new FormData();
-  body.append("metaId", metaId);
-  body.append("archivo", archivo);
-  const token = window.sessionStorage.getItem(CLAVE_TOKEN);
-  const response = await fetch(`${API_URL}/evidencias`, { method: "POST", body, headers: token ? { Authorization: `Bearer ${token}` } : undefined });
-  if (!response.ok) throw new ApiError(response.status, "No se pudo subir el archivo.");
-};
-
 // ---------------------------------------------------------------------------
 // Historias en curso. Con NEXT_PUBLIC_USE_MOCKS=true responden con datos de ejemplo.
 // ---------------------------------------------------------------------------
 
 const esperar = (ms = 300) => new Promise((resolver) => setTimeout(resolver, ms));
+
+/** HU-13 en modo demostración: ids del catálogo de ejemplo (1 Actuaría, 2 Derecho, 3 Economía, 4 Sociología) → nombres. */
+const LICENCIATURAS_DEMO = ["Actuaría", "Derecho", "Economía", "Sociología"];
+const nombresDemo = (licenciaturaIds?: string) =>
+  licenciaturaIds ? licenciaturaIds.split(",").map((id) => LICENCIATURAS_DEMO[Number(id) - 1]).filter((n): n is string => Boolean(n)) : null;
 
 /** HU-02 · POST /auth/restablecer (enlace del correo de recuperación) */
 export const restablecerContrasena = async (token: string, nueva: string): Promise<void> => {
@@ -300,10 +302,11 @@ const cicloDemo = (datos: CicloPayload, id: string): CicloAdministracion => {
 };
 
 /** HU-18 · GET /ciclos */
-export const listarCiclos = async (): Promise<CicloAdministracion[]> => {
-  if (!USE_MOCKS) return request<CicloAdministracion[]>("/ciclos");
+export const listarCiclos = async (licenciaturaIds?: string): Promise<CicloAdministracion[]> => {
+  if (!USE_MOCKS) return request<CicloAdministracion[]>(`/ciclos${consulta({ licenciaturaIds })}`);
   await esperar(150);
-  return structuredClone(ciclosDemo);
+  const nombres = nombresDemo(licenciaturaIds);
+  return structuredClone(ciclosDemo).filter((c) => !nombres || nombres.includes(c.licenciatura.nombre));
 };
 
 /** HU-18 · POST /ciclos: inicia el ciclo y crea su carpeta /Evidencias/[Licenciatura]/[nombre]/ */
@@ -358,11 +361,12 @@ const exigirEditableDemo = () => {
 };
 
 /** HU-04 · GET /planes: Administrador = todos (incluidos borradores); Captura y Auxiliar = su licenciatura. */
-export const listarPlanes = async (): Promise<PlanResumen[]> => {
-  if (!USE_MOCKS) return request<PlanResumen[]>("/planes");
+export const listarPlanes = async (licenciaturaIds?: string): Promise<PlanResumen[]> => {
+  if (!USE_MOCKS) return request<PlanResumen[]>(`/planes${consulta({ licenciaturaIds })}`);
   await esperar(150);
   const usuario = leerUsuarioSesion();
-  const todos = mock.PLANES.map((p) => (p.id === planDemo.id ? resumenDemo() : p));
+  const nombres = nombresDemo(licenciaturaIds);
+  const todos = mock.PLANES.map((p) => (p.id === planDemo.id ? resumenDemo() : p)).filter((p) => !nombres || nombres.includes(p.licenciatura));
   return usuario && usuario.rol !== "ADMINISTRADOR" ? todos.filter((p) => p.licenciatura === (usuario.licenciatura ?? "Actuaría")) : todos;
 };
 
@@ -489,4 +493,268 @@ export const guardarMetas = async (recomendacionId: string, datos: GuardarMetasP
 export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<AtencionLicenciatura[]> => {
   if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaId ? `?licenciaturaId=${encodeURIComponent(licenciaturaId)}` : ""}`);
   return mock.ATENCION;
+};
+
+// ---------------------------------------------------------------------------
+// Bloque Informe de Seguimiento (HU-07, HU-08, HU-11) · base compartida (lectura).
+// Las acciones (iniciar, avances, evidencias, enviar, validar, devolver, reabrir) las agregan las líneas A y B
+// debajo de esta sección; todas responden el InformeDetalle completo.
+// ---------------------------------------------------------------------------
+
+const consulta = (filtros: Record<string, string | number | undefined>) => {
+  const parametros = new URLSearchParams(
+    Object.entries(filtros)
+      .filter((par): par is [string, string | number] => par[1] !== undefined && par[1] !== "")
+      .map(([clave, valor]) => [clave, String(valor)]),
+  );
+  const texto = parametros.toString();
+  return texto ? `?${texto}` : "";
+};
+
+/** GET /informes · Administrador: todos; Captura y Auxiliar: los de su licenciatura. */
+export const listarInformes = async (filtros: FiltrosInformes = {}): Promise<InformeResumen[]> => {
+  if (!USE_MOCKS) return request<InformeResumen[]>(`/informes${consulta(filtros)}`);
+  await esperar(150);
+  const nombres = nombresDemo(filtros.licenciaturaIds);
+  return mock.INFORMES.filter(
+    (i) => (!filtros.estado || i.estado === filtros.estado) && (!filtros.periodo || i.periodo === filtros.periodo) && (!nombres || nombres.includes(i.licenciatura)),
+  );
+};
+
+/** GET /informes/:id */
+export const obtenerInforme = async (id: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${encodeURIComponent(id)}`);
+  await esperar(150);
+  const informe = mock.INFORMES_DETALLE.find((i) => i.id === id);
+  if (!informe) throw new ApiError(404, "Informe no encontrado.");
+  return clonar(informe);
+};
+
+/** GET /informes/mio · ciclo vigente, semestre en curso, informe del semestre (o null) y los anteriores. */
+export const obtenerMiInforme = async (): Promise<MiInforme> => {
+  if (!USE_MOCKS) return request<MiInforme>("/informes/mio");
+  await esperar(150);
+  return clonar(mock.MI_INFORME);
+};
+
+/** GET /evidencias/:id/archivo · PDF guardado en la carpeta del ciclo (pide sesión). `enlace` viene de EvidenciaInforme. */
+export const descargarEvidencia = async (enlace: string): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, "Abrir evidencias guardadas requiere conectar el backend.");
+  return requestBlob(enlace, "No pudimos abrir la evidencia.");
+};
+
+// ---------- HU-08 · Revisión del informe (solo Administrador) ----------
+
+/** Modo demostración: aplica la decisión sobre la copia en memoria del informe. */
+const decidirDemo = async (id: string, cambio: (i: InformeDetalle) => void): Promise<InformeDetalle> => {
+  await esperar();
+  const informe = mock.INFORMES_DETALLE.find((i) => i.id === id);
+  if (!informe) throw new ApiError(404, "Informe no encontrado.");
+  cambio(informe);
+  return clonar(informe);
+};
+
+const revisionDemo = (decision: "APROBADO" | "DEVUELTO", comentario: string | null, datos?: DevolverInformePayload) => ({
+  id: crypto.randomUUID(), decision, comentario, revisor: "Administración SSM",
+  fecha: new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date()),
+  observaciones: datos?.observaciones ?? [],
+});
+
+const devolverDemo = (i: InformeDetalle, comentario: string, datos: DevolverInformePayload) => {
+  const revision = revisionDemo("DEVUELTO", comentario, datos);
+  Object.assign(i, { estado: "DEVUELTO", aprobadoEn: null, editable: true, bloqueo: null, ultimaRevision: revision, revisiones: [...i.revisiones, revision] });
+  i.avances.forEach((a) => { a.observacionRevision = datos.observaciones?.find((o) => o.recomendacionId === a.recomendacionId)?.comentario ?? null; });
+};
+
+/** POST /informes/:id/validar */
+export const validarInforme = async (id: string, comentario?: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/validar`, { method: "POST", body: JSON.stringify({ comentario }) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "EN_REVISION") throw new ApiError(409, "Solo se pueden validar informes que están en revisión.");
+    const revision = revisionDemo("APROBADO", comentario?.trim() || null);
+    Object.assign(i, { estado: "APROBADO", aprobadoEn: new Date().toISOString(), editable: false, bloqueo: "APROBADO", ultimaRevision: revision, revisiones: [...i.revisiones, revision] });
+    i.avances.forEach((a) => { a.observacionRevision = null; });
+  });
+};
+
+/** POST /informes/:id/devolver */
+export const devolverInforme = async (id: string, datos: DevolverInformePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/devolver`, { method: "POST", body: JSON.stringify(datos) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "EN_REVISION") throw new ApiError(409, "Solo se pueden devolver informes que están en revisión.");
+    devolverDemo(i, datos.motivo, datos);
+  });
+};
+
+/** POST /informes/:id/reabrir (informe aprobado; motivo obligatorio). */
+export const reabrirInforme = async (id: string, datos: DevolverInformePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/reabrir`, { method: "POST", body: JSON.stringify(datos) });
+  return decidirDemo(id, (i) => {
+    if (i.estado !== "APROBADO") throw new ApiError(409, "Solo se pueden reabrir informes aprobados.");
+    devolverDemo(i, `Reapertura: ${datos.motivo}`, datos);
+  });
+};
+
+// ---------- HU-07 · Captura del informe (Captura y Auxiliar) ----------
+
+/** Modo demostración: el informe de la coordinación vive en memoria (se arma con el plan de ejemplo de Actuaría). */
+let miInformeDemo: InformeDetalle | null = null;
+
+const recalcularDemo = (i: InformeDetalle) => {
+  i.conAvance = i.avances.filter((a) => a.porcentaje !== null).length;
+  i.evidencias = i.avances.reduce((total, a) => total + a.evidencias.length, 0);
+  i.avances.forEach((a) => { a.evidenciaObligatoria = a.porcentaje === 100; });
+};
+
+const editableDemo = (): InformeDetalle => {
+  if (!miInformeDemo) throw new ApiError(404, "Informe no encontrado.");
+  if (!miInformeDemo.editable) throw new ApiError(409, "El informe está en revisión o ya fue aprobado; no se puede editar.");
+  return miInformeDemo;
+};
+
+const avanceDemo = (recomendacionId: string) => {
+  const a = editableDemo().avances.find((x) => x.recomendacionId === recomendacionId);
+  if (!a) throw new ApiError(404, "La recomendación no pertenece al plan de este informe.");
+  return a;
+};
+
+const evidenciaDemo = (recomendacionId: string, datos: Pick<EvidenciaInforme, "origen" | "nombre" | "tamano" | "enlace" | "externo">) => {
+  const a = avanceDemo(recomendacionId);
+  if (a.porcentaje === null) throw new ApiError(400, `Captura primero el % de avance de la recomendación ${a.numero} y después agrega su evidencia.`);
+  a.evidencias.push({ id: crypto.randomUUID(), cargadaPor: "Coordinación (demostración)", cargadaEn: new Date().toISOString(), ...datos });
+  recalcularDemo(editableDemo());
+  return clonar(editableDemo());
+};
+
+/** POST /ciclos/:cicloId/informes · "Iniciar informe del semestre" (si ya existe, devuelve el mismo). */
+export const iniciarInforme = async (cicloId: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/ciclos/${cicloId}/informes`, { method: "POST" });
+  await esperar();
+  if (!miInformeDemo) {
+    const periodo = mock.MI_INFORME.periodo!;
+    miInformeDemo = {
+      id: "inf-act-2027-1", informeId: "i-act-2027-1", cicloId, licenciaturaId: "1", licenciatura: mock.CICLO_ACTUARIA.licenciatura,
+      ciclo: mock.CICLO_ACTUARIA.nombre, periodo: periodo.nombre, fechaInicio: periodo.fechaInicio, fechaFin: periodo.fechaFin, fechaCorte: periodo.fechaCorte,
+      estado: "BORRADOR", enviadoEn: null, aprobadoEn: null, recomendaciones: mock.RECOMENDACIONES.length, conAvance: 0, evidencias: 0,
+      organismo: mock.CICLO_ACTUARIA.organismo, vigenciaInicio: mock.CICLO_ACTUARIA.vigenciaInicio, vigenciaFin: mock.CICLO_ACTUARIA.vigenciaFin,
+      editable: true, bloqueo: null, ultimaRevision: null, revisiones: [],
+      avances: mock.RECOMENDACIONES.map((r) => {
+        const vencidas = r.metas.filter((m) => m.fechaCompromiso && m.fechaCompromiso <= periodo.fechaCorte && m.porcentajeEsperado !== null);
+        return {
+          recomendacionId: r.id, numero: r.numero, categoria: r.categoria, indicador: r.indicador, recomendacion: r.descripcion, fechaCumplimiento: r.fechaCumplimiento,
+          metas: r.metas.map((m) => ({ descripcion: m.descripcion, fechaCompromiso: m.fechaCompromiso, porcentajeEsperado: m.porcentajeEsperado })),
+          esperadoAlCorte: vencidas.length ? Math.max(...vencidas.map((m) => m.porcentajeEsperado as number)) : null,
+          porcentaje: null, observaciones: null, evidenciaObligatoria: false, observacionRevision: null, evidencias: [],
+        };
+      }),
+    };
+  }
+  mock.MI_INFORME.informe = miInformeDemo;
+  return clonar(miInformeDemo);
+};
+
+/** PUT /informes/:id/avances/:recomendacionId · % entero de 0 a 100 y observaciones. */
+export const guardarAvance = async (id: string, recomendacionId: string, datos: AvancePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/avances/${recomendacionId}`, { method: "PUT", body: JSON.stringify(datos) });
+  await esperar(200);
+  const a = avanceDemo(recomendacionId);
+  a.porcentaje = datos.porcentaje;
+  a.observaciones = datos.observaciones?.trim() || null;
+  recalcularDemo(editableDemo());
+  return clonar(editableDemo());
+};
+
+/** POST /informes/:id/avances/:recomendacionId/enlaces · Plan B. */
+export const agregarEnlaceEvidencia = async (id: string, recomendacionId: string, datos: EnlacePayload): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/avances/${recomendacionId}/enlaces`, { method: "POST", body: JSON.stringify(datos) });
+  await esperar(200);
+  return evidenciaDemo(recomendacionId, { origen: "URL", nombre: datos.nombre?.trim() || new URL(datos.url).hostname, tamano: null, enlace: datos.url.trim(), externo: true });
+};
+
+/**
+ * POST /informes/:id/avances/:recomendacionId/evidencias (multipart, campo "archivo").
+ * Usa XMLHttpRequest porque fetch no informa el progreso de la subida. `alProgreso` recibe 0–100;
+ * al llegar a 100 el servidor está convirtiendo a PDF.
+ */
+export const subirEvidenciaInforme = (id: string, recomendacionId: string, archivo: File, alProgreso: (porcentaje: number) => void): Promise<InformeDetalle> => {
+  if (USE_MOCKS) {
+    return new Promise((resolver, rechazar) => {
+      let avance = 0;
+      const timer = window.setInterval(() => {
+        avance = Math.min(100, avance + 25);
+        alProgreso(avance);
+        if (avance < 100) return;
+        window.clearInterval(timer);
+        try {
+          resolver(evidenciaDemo(recomendacionId, { origen: "ARCHIVO", nombre: archivo.name, tamano: archivo.size, enlace: "/evidencias/demo/archivo", externo: false }));
+        } catch (error) {
+          rechazar(error);
+        }
+      }, 250);
+    });
+  }
+  return new Promise((resolver, rechazar) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/informes/${id}/avances/${recomendacionId}/evidencias`);
+    const token = window.sessionStorage.getItem(CLAVE_TOKEN);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) alProgreso(Math.round((e.loaded / e.total) * 100)); };
+    xhr.onload = () => {
+      const cuerpo = (() => { try { return JSON.parse(xhr.responseText) as unknown; } catch { return {}; } })();
+      if (xhr.status >= 200 && xhr.status < 300) return resolver(cuerpo as InformeDetalle);
+      const mensaje = (cuerpo as { message?: string | string[] }).message;
+      rechazar(new ApiError(xhr.status, (Array.isArray(mensaje) ? mensaje[0] : mensaje) ?? "No pudimos subir el archivo."));
+    };
+    xhr.onerror = () => rechazar(new ApiError(0, "Se perdió la conexión al subir el archivo. Reintenta."));
+    const datos = new FormData();
+    datos.append("archivo", archivo);
+    xhr.send(datos);
+  });
+};
+
+/** DELETE /evidencias/:id · solo con el informe editable; el archivo se conserva en la carpeta. */
+export const quitarEvidenciaInforme = async (evidenciaId: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/evidencias/${evidenciaId}`, { method: "DELETE" });
+  await esperar(200);
+  const informe = editableDemo();
+  informe.avances.forEach((a) => { a.evidencias = a.evidencias.filter((e) => e.id !== evidenciaId); });
+  recalcularDemo(informe);
+  return clonar(informe);
+};
+
+/** POST /informes/:id/enviar · revisa que esté completo y avisa a la Administración (HU-11). */
+export const enviarInforme = async (id: string): Promise<InformeDetalle> => {
+  if (!USE_MOCKS) return request<InformeDetalle>(`/informes/${id}/enviar`, { method: "POST" });
+  await esperar();
+  const informe = editableDemo();
+  const faltan = informe.avances
+    .map((a) => (a.porcentaje === null ? `Recomendación ${a.numero}: falta el % de avance` : a.porcentaje === 100 && a.evidencias.length === 0 ? `Recomendación ${a.numero}: falta al menos una evidencia (está al 100 %)` : null))
+    .filter(Boolean);
+  if (faltan.length) throw new ApiError(400, `Completa el informe antes de enviarlo. ${faltan.join("; ")}.`);
+  Object.assign(informe, { estado: "EN_REVISION", editable: false, bloqueo: "EN_REVISION", enviadoEn: new Date().toISOString() });
+  return clonar(informe);
+};
+
+// ---------- HU-03 · Bitácora de auditoría (solo Administrador) ----------
+
+/** GET /auditoria · del más reciente al más antiguo, con filtros y paginación. */
+export const listarBitacora = async (filtros: FiltrosBitacora = {}): Promise<PaginaBitacora> => {
+  if (!USE_MOCKS) return request<PaginaBitacora>(`/auditoria${consulta(filtros)}`);
+  await esperar(150);
+  const texto = filtros.q?.trim().toLowerCase();
+  const nombres = nombresDemo(filtros.licenciaturaIds);
+  const eventos = mock.BITACORA.filter(
+    (e) =>
+      (!filtros.rol || e.rol === filtros.rol) &&
+      (!nombres || (e.licenciatura !== null && nombres.includes(e.licenciatura))) &&
+      (!texto || `${e.usuario.nombre} ${e.usuario.correo} ${e.campo} ${e.anterior ?? ""} ${e.nuevo ?? ""}`.toLowerCase().includes(texto)),
+  );
+  return { total: eventos.length, pagina: 1, limite: eventos.length, eventos };
+};
+
+/** GET /auditoria/recomendaciones/:id · línea de tiempo de una recomendación (plan e informes), de la más antigua a la más reciente. */
+export const historialRecomendacion = async (recomendacionId: string): Promise<EventoAuditoria[]> => {
+  if (!USE_MOCKS) return request<EventoAuditoria[]>(`/auditoria/recomendaciones/${recomendacionId}`);
+  await esperar(150);
+  return mock.BITACORA.filter((e) => e.entidadId === recomendacionId).reverse();
 };

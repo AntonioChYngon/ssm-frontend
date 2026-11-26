@@ -8,6 +8,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Alert, Badge, Card, DataTable, EmptyState, PageTitle } from "@/components/ui/Display";
 import { SelectField, TextField } from "@/components/ui/Field";
 import { ChipGroup } from "@/components/ui/Interactive";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { ApiError, actualizarCiclo, crearCarpetaCiclo, crearCiclo, listarCiclos, obtenerCatalogos } from "@/lib/api";
 import { ESTADO_PLAN_BADGE, type Catalogos, type CicloAdministracion, type CicloPayload, type EstadoBadge } from "@/lib/types";
 
@@ -65,9 +66,12 @@ const CiclosPage = () => {
   const [errorForm, setErrorForm] = useState<string>();
   const [enviando, setEnviando] = useState(false);
 
+  // HU-13: una, varias o todas las licenciaturas (se guarda en la URL).
+  const licenciaturas = useLicenciaturasEnUrl();
+
   const cargar = async () => {
     try {
-      const [lista, cat] = await Promise.all([listarCiclos(), obtenerCatalogos()]);
+      const [lista, cat] = await Promise.all([listarCiclos(licenciaturas.parametro), obtenerCatalogos()]);
       setCiclos(lista);
       setCatalogos(cat);
       setErrorCarga(undefined);
@@ -77,8 +81,8 @@ const CiclosPage = () => {
   };
 
   useEffect(() => {
-    void cargar();
-  }, []);
+    if (licenciaturas.listo) void cargar();
+  }, [licenciaturas.listo, licenciaturas.parametro]);
 
   const cambiar = <K extends keyof Form>(campo: K, valor: Form[K]) => setForm((f) => ({ ...f, [campo]: valor }));
 
@@ -163,7 +167,10 @@ const CiclosPage = () => {
 
       <div className="row row--top row--responsive" style={{ gap: 24 }}>
         <div className="stack grow" style={{ gap: 16 }}>
-          <ChipGroup label="Estado del ciclo" options={Object.keys(FILTROS)} value={filtro} onChange={setFiltro} />
+          <div className="row row--end row--responsive" style={{ gap: 16 }}>
+            <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
+            <ChipGroup label="Estado del ciclo" options={Object.keys(FILTROS)} value={filtro} onChange={setFiltro} />
+          </div>
           {ciclos === null && !errorCarga ? (
             <p className="t-muted" aria-busy="true">Cargando ciclos…</p>
           ) : lista.length === 0 ? (

@@ -27,8 +27,8 @@ const LICENCIATURA: NavItem[] = [
   { label: "Dashboard", href: "/licenciatura/dashboard", icon: "grafica" },
   { label: "Plan de mejora", href: "/licenciatura/plan", icon: "documento" },
   { label: "Configuración de metas", href: "/licenciatura/metas", icon: "objetivo" },
-  { label: "Carga de evidencias", href: "/licenciatura/evidencias", icon: "carpeta" },
-  { label: "Observaciones", href: "/licenciatura/observaciones", icon: "mensaje" },
+  // HU-07/HU-08: captura, evidencias y observaciones de la Administración en una sola pantalla.
+  { label: "Informe de seguimiento", href: "/licenciatura/informe", icon: "carpeta" },
 ];
 
 // Captura y Auxiliar tienen las mismas opciones en el Plan de Mejora (captura, envío y configuración de metas).
