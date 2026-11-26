@@ -403,6 +403,36 @@ export const descargarReportePlan = async (id: string, formato: FormatoReporte =
   return requestBlob(`/planes/${encodeURIComponent(id)}/${formato}`);
 };
 
+/** HU-09 · GET /informes/:id/pdf o /informes/:id/docx: Informe de Seguimiento con membrete y evidencias como hipervínculos. */
+export const descargarReporteInforme = async (id: string, formato: FormatoReporte = "pdf"): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, `El informe ${formato === "docx" ? "en Word" : "en PDF"} requiere conectar el backend.`);
+  return requestBlob(`/informes/${encodeURIComponent(id)}/${formato}`, "No pudimos generar el informe.");
+};
+
+/** Nombre de archivo del informe: Informe_de_Seguimiento_Actuaria_2026-2.pdf */
+export const nombreReporteInforme = (informe: { licenciatura: string; periodo: string }, formato: FormatoReporte) =>
+  `Informe_de_Seguimiento_${informe.licenciatura}_${informe.periodo}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9-]+/g, "_") + `.${formato}`;
+
+// HU-09 · Los enlaces a evidencias de los reportes exportados abren /evidencias/:id en una pestaña nueva, que no trae
+// sesión (vive en sessionStorage). Esa página guarda a dónde volver y el login la regresa ahí. Solo se aceptan rutas
+// /evidencias/... para que nadie use el login como redirección a otro sitio.
+const CLAVE_DESTINO = "ssm.destino";
+const DESTINO_PERMITIDO = /^\/evidencias\/[A-Za-z0-9-]+$/;
+
+export const guardarDestinoTrasLogin = (ruta: string) => {
+  if (DESTINO_PERMITIDO.test(ruta)) window.sessionStorage.setItem(CLAVE_DESTINO, ruta);
+};
+
+/** Devuelve el destino pendiente (una sola vez) o null. */
+export const tomarDestinoTrasLogin = (): string | null => {
+  const ruta = window.sessionStorage.getItem(CLAVE_DESTINO);
+  window.sessionStorage.removeItem(CLAVE_DESTINO);
+  return ruta && DESTINO_PERMITIDO.test(ruta) ? ruta : null;
+};
+
 /** Nombre de archivo del reporte: Plan_de_Mejora_Actuaria_2024-2029.docx */
 export const nombreReportePlan = (plan: { licenciatura: string; ciclo: string }, formato: FormatoReporte) =>
   `Plan_de_Mejora_${plan.licenciatura}_${plan.ciclo}`

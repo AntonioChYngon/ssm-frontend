@@ -8,6 +8,7 @@ import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { TablaAvances, conRezago } from "@/components/informes/TablaAvances";
 import { useInforme } from "@/components/informes/useInforme";
 import { Button, LinkButton } from "@/components/ui/Button";
+import { DescargasInforme } from "@/components/informes/DescargasInforme";
 import { Alert, Badge, Card, EmptyState, PageTitle } from "@/components/ui/Display";
 import { TextAreaField } from "@/components/ui/Field";
 import { ConfirmModal } from "@/components/ui/Interactive";
@@ -44,6 +45,7 @@ export const RevisionInforme = ({ id }: { id: string }) => {
   const [modal, setModal] = useState<Accion | null>(null);
   const [observaciones, setObservaciones] = useState<Record<string, string>>({});
   const [exito, setExito] = useState<string | null>(null);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
 
   if (error && !informe) {
     return <EmptyState titulo="No pudimos abrir el informe" mensaje={error} icon="alerta" action={<LinkButton href="/admin/informes" variant="contorno">Volver a la lista</LinkButton>} />;
@@ -101,16 +103,29 @@ export const RevisionInforme = ({ id }: { id: string }) => {
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Informes de seguimiento", href: "/admin/informes" }, { label: `${informe.licenciatura} · ${informe.periodo}` }]}
         title={`Informe de seguimiento ${informe.periodo} · Lic. en ${informe.licenciatura}`}
         subtitle={`Organismo: ${informe.organismo} · Ciclo ${informe.ciclo} · Corte al ${fechaLegible(informe.fechaCorte)}`}
-        actions={enRevision ? (
+        actions={
           <>
-            <Button variant="peligro" icon="mensaje" disabled={ocupado} onClick={() => setModal("devolver")}>Devolver con observaciones</Button>
-            <Button icon="check" disabled={ocupado} onClick={() => setModal("validar")}>Validar informe</Button>
+            {/* HU-09: exportar para integrar el expediente que se envía al organismo evaluador. */}
+            <DescargasInforme
+              informe={informe}
+              onAviso={(a) => {
+                setErrorDescarga(a.tipo === "error" ? a.texto : null);
+                if (a.tipo === "exito") setExito(a.texto);
+              }}
+              disabled={ocupado}
+            />
+            {enRevision && (
+              <>
+                <Button variant="peligro" icon="mensaje" disabled={ocupado} onClick={() => setModal("devolver")}>Devolver con observaciones</Button>
+                <Button icon="check" disabled={ocupado} onClick={() => setModal("validar")}>Validar informe</Button>
+              </>
+            )}
+            {aprobado && <Button variant="contorno" icon="restablecer" disabled={ocupado} onClick={() => setModal("reabrir")}>Reabrir informe</Button>}
           </>
-        ) : aprobado ? (
-          <Button variant="contorno" icon="restablecer" disabled={ocupado} onClick={() => setModal("reabrir")}>Reabrir informe</Button>
-        ) : undefined}
+        }
       />
       {exito && <Alert tipo="exito">{exito}</Alert>}
+      {errorDescarga && <Alert tipo="error">{errorDescarga}</Alert>}
       {aviso && <Alert tipo="error">{aviso}</Alert>}
       <AvisoEstado informe={informe} />
       {informe.ultimaRevision && (

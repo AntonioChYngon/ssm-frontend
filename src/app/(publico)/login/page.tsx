@@ -7,7 +7,7 @@ import { PublicFooter, SplitLayout } from "@/components/layout/PublicLayout";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Display";
 import { Checkbox, TextField } from "@/components/ui/Field";
-import { ApiError, MENSAJE_DOMINIO, esCorreoInstitucional, guardarSesion, login, rutaTrasLogin, usaMocks } from "@/lib/api";
+import { ApiError, MENSAJE_DOMINIO, esCorreoInstitucional, guardarSesion, login, rutaTrasLogin, tomarDestinoTrasLogin, usaMocks } from "@/lib/api";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -29,7 +29,9 @@ const LoginPage = () => {
     try {
       const sesion = await login(correo, contrasena);
       guardarSesion(sesion);
-      router.push(rutaTrasLogin(sesion.usuario));
+      // HU-09: si llegó desde el enlace de una evidencia, vuelve a ella (salvo que deba cambiar su contraseña temporal).
+      const destino = sesion.usuario.debeCambiarContrasena ? null : tomarDestinoTrasLogin();
+      router.push(destino ?? rutaTrasLogin(sesion.usuario));
     } catch (error) {
       setErrorGeneral(error instanceof ApiError ? error.message : "No pudimos iniciar sesión. Revisa tu conexión e intenta de nuevo.");
     } finally {
