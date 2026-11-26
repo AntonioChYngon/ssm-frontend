@@ -29,6 +29,7 @@ import type {
   PlanResumen,
   RecomendacionPayload,
   RecomendacionPlan,
+  RecordatoriosLicenciatura,
   Rol,
   Sesion,
   Usuario,
@@ -165,6 +166,10 @@ export const listarCoordinaciones = async (): Promise<CoordinacionOpcion[]> => {
 
 /** GET /notificaciones */
 export const listarNotificaciones = async (): Promise<Notificacion[]> => (USE_MOCKS ? mock.NOTIFICACIONES : request<Notificacion[]>("/notificaciones"));
+
+/** HU-10 · GET /recordatorios: fechas límite próximas, vencidas y rezagos de la licenciatura (banner al iniciar sesión). */
+export const obtenerRecordatorios = async (): Promise<RecordatoriosLicenciatura> =>
+  USE_MOCKS ? mock.RECORDATORIOS : request<RecordatoriosLicenciatura>("/recordatorios");
 
 /** PATCH /notificaciones/:id/leida */
 export const marcarNotificacionLeida = async (id: string): Promise<void> => {

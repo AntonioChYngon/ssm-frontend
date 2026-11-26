@@ -9,6 +9,7 @@ import { Icon } from "@/components/ui/Icon";
 import { navPorRol } from "@/lib/nav";
 import { RUTA_CAMBIO_OBLIGATORIO, actualizarUsuarioSesion, cerrarSesion as borrarSesion, leerUsuarioSesion, listarNotificaciones, obtenerUsuarioActual, rutaInicio, usaMocks } from "@/lib/api";
 import { ROL_LABEL, type Rol, type Usuario } from "@/lib/types";
+import { BannerRecordatorios } from "./BannerRecordatorios";
 import { NotificationPanel } from "./NotificationPanel";
 
 type Area = "admin" | "licenciatura" | "comun";
@@ -164,7 +165,11 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
             <Icon name="salir" size={20} />Cerrar sesión
           </button>
         </nav>
-        <main id="contenido" className="main">{children}</main>
+        <main id="contenido" className="main">
+          {/* HU-10: recordatorios de la coordinación al iniciar sesión. */}
+          {area === "licenciatura" && <BannerRecordatorios />}
+          {children}
+        </main>
       </div>
 
       <NotificationPanel open={panelAbierto} onClose={() => setPanelAbierto(false)} onUnreadCountChange={setNotificacionesNuevas} />
