@@ -108,7 +108,7 @@ export const NotificationPanel = ({ open, onClose, onUnreadCountChange }: { open
               <span className="kpi__icon" style={{ width: 40, height: 40, background: tipo.bg, color: tipo.fg }}><Icon name={tipo.icon} size={20} /></span>
               <div className="grow">
                 <div className="t-medium">{n.titulo}</div>
-                <p className="t-small t-muted" style={{ margin: "2px 0 4px" }}>{n.descripcion}</p>
+                <p className="t-small t-muted" style={{ margin: "2px 0 4px", whiteSpace: "pre-line" }}>{n.descripcion}</p>
                 <div className="row t-small" style={{ gap: 12 }}>
                   <span className="t-muted">{n.fecha}</span>
                   <Link href={n.enlace} onClick={onClose} className="t-medium">Ver documento ›</Link>

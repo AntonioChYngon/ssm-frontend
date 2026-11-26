@@ -427,3 +427,21 @@ export type DevolverPlanPayload = { motivo: string; observaciones: { recomendaci
 /** Mi perfil · GET /auth/actividad: últimos movimientos de la propia cuenta. */
 export type TipoActividad = "SESION" | "SEGURIDAD" | "PLAN" | "CUENTAS" | "CICLOS" | "OTRO";
 export type Actividad = { id: string; tipo: TipoActividad; descripcion: string; fecha: string };
+
+/** HU-10 · GET /recordatorios: banner al iniciar sesión (contrato: RecordatoriosLicenciatura en el backend). */
+export type TipoRecordatorio = "FECHA_LIMITE" | "VENCIDA" | "REZAGO";
+export type Recordatorio = {
+  clave: string;
+  tipo: TipoRecordatorio;
+  recomendacionId: string;
+  indicador: string;
+  recomendacion: string;
+  meta: string;
+  comprometido: number;
+  actual: number;
+  fechaHito: string | null;
+  fechaLimite: string | null;
+  /** Negativo si la fecha límite ya pasó. */
+  diasRestantes: number | null;
+};
+export type RecordatoriosLicenciatura = { cicloActivo: boolean; diasAntes: number; recordatorios: Recordatorio[] };

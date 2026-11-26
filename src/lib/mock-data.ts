@@ -11,6 +11,7 @@ import type {
   MiInforme,
   Meta,
   Notificacion,
+  RecordatoriosLicenciatura,
   PlanDetalle,
   PlanResumen,
   RecomendacionPlan,
@@ -260,6 +261,15 @@ export const DEVOLUCIONES: Devolucion[] = [
     ],
   },
 ];
+
+export const RECORDATORIOS: RecordatoriosLicenciatura = {
+  cicloActivo: true,
+  diasAntes: 7,
+  recordatorios: [
+    { clave: "LIMITE:1:2026-12-15", tipo: "FECHA_LIMITE", recomendacionId: "1", indicador: "1.1 Formación docente", recomendacion: "Implementar un programa anual de actualización disciplinar", meta: "Cumplir el 100% de las actividades programadas", comprometido: 100, actual: 60, fechaHito: null, fechaLimite: "2026-12-15", diasRestantes: 5 },
+    { clave: "REZAGO:2:2026-06-30:50", tipo: "REZAGO", recomendacionId: "2", indicador: "9.1 Laboratorios de cómputo", recomendacion: "Renovar el equipo de cómputo de los laboratorios", meta: "Equipo de dos laboratorios renovado", comprometido: 50, actual: 20, fechaHito: "2026-06-30", fechaLimite: "2028-06-30", diasRestantes: 580 },
+  ],
+};
 
 export const NOTIFICACIONES: Notificacion[] = [
   { id: "n1", tipo: "VENCIMIENTO", titulo: "Meta vencida", descripcion: "“Curso de ciencia de datos” venció el 05/11/2026. Actualiza su avance.", fecha: "Hoy, 08:00", leida: false, enlace: "/licenciatura/metas" },
