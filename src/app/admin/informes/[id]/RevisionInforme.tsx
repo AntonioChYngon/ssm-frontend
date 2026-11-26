@@ -3,6 +3,7 @@
 // HU-08 · Revisión del informe de seguimiento por el Administrador: avances con % esperado contra reportado,
 // evidencias (pestaña nueva), observación por recomendación, Validar / Devolver / Reabrir e historial.
 import { useState, type ReactNode } from "react";
+import { HistorialCambios } from "@/components/auditoria/HistorialCambios";
 import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { TablaAvances, conRezago } from "@/components/informes/TablaAvances";
 import { useInforme } from "@/components/informes/useInforme";
@@ -123,15 +124,21 @@ export const RevisionInforme = ({ id }: { id: string }) => {
         <div className="stack grow">
           <TablaAvances
             avances={avances}
-            pie={conCampos ? (a) => (
-              <TextAreaField
-                label={aprobado ? "Observación si reabres el informe (opcional)" : "Observación para esta recomendación (opcional)"}
-                placeholder="Escribe una observación…"
-                value={observaciones[a.recomendacionId] ?? ""}
-                onChange={(e) => setObservaciones((previas) => ({ ...previas, [a.recomendacionId]: e.target.value }))}
-                rows={2}
-              />
-            ) : undefined}
+            pie={(a) => (
+              <>
+                {conCampos && (
+                  <TextAreaField
+                    label={aprobado ? "Observación si reabres el informe (opcional)" : "Observación para esta recomendación (opcional)"}
+                    placeholder="Escribe una observación…"
+                    value={observaciones[a.recomendacionId] ?? ""}
+                    onChange={(e) => setObservaciones((previas) => ({ ...previas, [a.recomendacionId]: e.target.value }))}
+                    rows={2}
+                  />
+                )}
+                {/* HU-03: cambios de la recomendación en el plan y en cada informe, con usuario y rol. */}
+                <HistorialCambios recomendacionId={a.recomendacionId} numero={a.numero} />
+              </>
+            )}
           />
         </div>
         <aside className="stack side-340">

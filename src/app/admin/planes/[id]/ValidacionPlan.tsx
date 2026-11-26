@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, LinkButton } from "@/components/ui/Button";
+import { HistorialCambios } from "@/components/auditoria/HistorialCambios";
 import { HistorialRevisiones } from "@/components/planes/RevisionHistory";
 import { Alert, Badge, Card, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { TextAreaField } from "@/components/ui/Field";
@@ -140,6 +141,8 @@ export const ValidacionPlan = ({ id }: { id: string }) => {
                   <Dato titulo="Fecha de cumplimiento">{fechaLegible(r.fechaCumplimiento)}</Dato>
                 </div>
                 {r.observacion && !enValidacion && <Alert tipo="advertencia">Observación de la última devolución: {r.observacion}</Alert>}
+                {/* HU-03: línea de tiempo de cambios de esta recomendación (captura y auxiliar). */}
+                <HistorialCambios recomendacionId={r.id} numero={r.numero} />
                 {enValidacion && (
                   <TextAreaField
                     label="Observación para esta recomendación (opcional)"

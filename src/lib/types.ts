@@ -276,17 +276,41 @@ export type Notificacion = {
   enlace: string;
 };
 
-export type EventoBitacora = {
+/** HU-03 · Área de la bitácora (filtro "Tipo de acción"). */
+export type AreaBitacora = "SESIONES" | "CUENTAS" | "PLAN" | "INFORME" | "CICLOS";
+
+/** HU-03 · GET /auditoria y GET /auditoria/recomendaciones/:id (debe coincidir con ssm-backend/src/modules/auditoria/bitacora.ts). */
+export type EventoAuditoria = {
   id: string;
-  dia: string;
-  hora: string;
-  usuario: string;
-  iniciales: string;
+  /** ISO 8601 */
+  fecha: string;
+  usuario: { id: string; nombre: string; correo: string };
   rol: string;
+  tipo: TipoActividad;
   accion: string;
   entidad: string;
-  cambio: string;
-  estado?: EstadoBadge;
+  entidadId: string;
+  campo: string;
+  anterior: string | null;
+  nuevo: string | null;
+  /** "Economía · Recomendación: …" (null si lo modificado ya no existe). */
+  contexto: string | null;
+  licenciatura: string | null;
+};
+
+export type PaginaBitacora = { total: number; pagina: number; limite: number; eventos: EventoAuditoria[] };
+
+export type FiltrosBitacora = {
+  rol?: Rol;
+  area?: AreaBitacora;
+  /** AAAA-MM-DD */
+  desde?: string;
+  hasta?: string;
+  q?: string;
+  /** HU-13: ids separados por coma. */
+  licenciaturaIds?: string;
+  pagina?: number;
+  limite?: number;
 };
 
 export type Incumplimiento = {

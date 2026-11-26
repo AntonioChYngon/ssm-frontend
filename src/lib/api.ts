@@ -12,9 +12,11 @@ import type {
   CoordinacionOpcion,
   CrearUsuarioPayload,
   DevolverInformePayload,
+  EventoAuditoria,
   EnlacePayload,
   EvidenciaInforme,
   DevolverPlanPayload,
+  FiltrosBitacora,
   FiltrosInformes,
   GuardarMetasPayload,
   InformeDetalle,
@@ -22,6 +24,7 @@ import type {
   MiInforme,
   MiPlan,
   Notificacion,
+  PaginaBitacora,
   PlanDetalle,
   PlanResumen,
   RecomendacionPayload,
@@ -491,8 +494,12 @@ export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<A
 // debajo de esta sección; todas responden el InformeDetalle completo.
 // ---------------------------------------------------------------------------
 
-const consulta = (filtros: FiltrosInformes) => {
-  const parametros = new URLSearchParams(Object.entries(filtros).filter((par): par is [string, string] => Boolean(par[1])));
+const consulta = (filtros: Record<string, string | number | undefined>) => {
+  const parametros = new URLSearchParams(
+    Object.entries(filtros)
+      .filter((par): par is [string, string | number] => par[1] !== undefined && par[1] !== "")
+      .map(([clave, valor]) => [clave, String(valor)]),
+  );
   const texto = parametros.toString();
   return texto ? `?${texto}` : "";
 };
@@ -716,4 +723,26 @@ export const enviarInforme = async (id: string): Promise<InformeDetalle> => {
   if (faltan.length) throw new ApiError(400, `Completa el informe antes de enviarlo. ${faltan.join("; ")}.`);
   Object.assign(informe, { estado: "EN_REVISION", editable: false, bloqueo: "EN_REVISION", enviadoEn: new Date().toISOString() });
   return clonar(informe);
+};
+
+// ---------- HU-03 · Bitácora de auditoría (solo Administrador) ----------
+
+/** GET /auditoria · del más reciente al más antiguo, con filtros y paginación. */
+export const listarBitacora = async (filtros: FiltrosBitacora = {}): Promise<PaginaBitacora> => {
+  if (!USE_MOCKS) return request<PaginaBitacora>(`/auditoria${consulta(filtros)}`);
+  await esperar(150);
+  const texto = filtros.q?.trim().toLowerCase();
+  const eventos = mock.BITACORA.filter(
+    (e) =>
+      (!filtros.rol || e.rol === filtros.rol) &&
+      (!texto || `${e.usuario.nombre} ${e.usuario.correo} ${e.campo} ${e.anterior ?? ""} ${e.nuevo ?? ""}`.toLowerCase().includes(texto)),
+  );
+  return { total: eventos.length, pagina: 1, limite: eventos.length, eventos };
+};
+
+/** GET /auditoria/recomendaciones/:id · línea de tiempo de una recomendación (plan e informes), de la más antigua a la más reciente. */
+export const historialRecomendacion = async (recomendacionId: string): Promise<EventoAuditoria[]> => {
+  if (!USE_MOCKS) return request<EventoAuditoria[]>(`/auditoria/recomendaciones/${recomendacionId}`);
+  await esperar(150);
+  return mock.BITACORA.filter((e) => e.entidadId === recomendacionId).reverse();
 };

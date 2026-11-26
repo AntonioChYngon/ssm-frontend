@@ -4,7 +4,7 @@ import type {
   AvanceLicenciatura,
   Devolucion,
   CicloResumen,
-  EventoBitacora,
+  EventoAuditoria,
   Incumplimiento,
   InformeDetalle,
   InformeResumen,
@@ -269,12 +269,19 @@ export const NOTIFICACIONES: Notificacion[] = [
   { id: "n5", tipo: "DEVOLUCION", titulo: "Informe validado", descripcion: "Tu informe 2026-1 fue validado sin observaciones.", fecha: "28/10/2026", leida: true, enlace: "/licenciatura/informe" },
 ];
 
-export const BITACORA: EventoBitacora[] = [
-  { id: "b1", dia: "Hoy · 11 de noviembre de 2026", hora: "09:12", usuario: "María González", iniciales: "MG", rol: "Administradora", accion: "Validó el informe de seguimiento", entidad: "Relaciones Internacionales · 2026-2", cambio: "Estado: En revisión → Validado", estado: "Validado" },
-  { id: "b2", dia: "Hoy · 11 de noviembre de 2026", hora: "08:47", usuario: "Jorge Ramírez", iniciales: "JR", rol: "Capturista · Actuaría", accion: "Envió el plan de mejora a validación", entidad: "Actuaría · Plan 2024–2029", cambio: "Estado: Borrador → En revisión", estado: "En revisión" },
-  { id: "b3", dia: "Hoy · 11 de noviembre de 2026", hora: "08:30", usuario: "Ana Torres", iniciales: "AT", rol: "Auxiliar · Actuaría", accion: "Subió 3 evidencias (convertidas a PDF)", entidad: "Actuaría · Recomendación 2", cambio: "Archivos: acta.docx, lista.xlsx, foto.jpg", estado: "Completado" },
-  { id: "b4", dia: "Ayer · 10 de noviembre de 2026", hora: "17:40", usuario: "María González", iniciales: "MG", rol: "Administradora", accion: "Devolvió el plan con 3 observaciones", entidad: "Economía · Plan 2024–2029", cambio: "Estado: En revisión → Devuelto", estado: "Devuelto" },
-  { id: "b5", dia: "Ayer · 10 de noviembre de 2026", hora: "13:05", usuario: "María González", iniciales: "MG", rol: "Administradora", accion: "Restableció la contraseña de un usuario", entidad: "Usuario: rosa.cruz@acatlan.unam.mx", cambio: "Se envió contraseña temporal" },
+const hace = (minutos: number) => new Date(Date.now() - minutos * 60_000).toISOString();
+const ADMIN_DEMO = { id: "u1", nombre: "María González", correo: "admin.ssm@acatlan.unam.mx" };
+const CAPTURA_DEMO = { id: "u2", nombre: "Coordinación Actuaría", correo: "actuaria@acatlan.unam.mx" };
+const AUXILIAR_DEMO = { id: "u3", nombre: "Ana Torres", correo: "ana.torres@acatlan.unam.mx" };
+
+/** HU-03 · Bitácora de ejemplo (del más reciente al más antiguo). */
+export const BITACORA: EventoAuditoria[] = [
+  { id: "b6", fecha: hace(12), usuario: ADMIN_DEMO, rol: "ADMINISTRADOR", tipo: "PLAN", accion: "Validó un informe de seguimiento", entidad: "version_informe", entidadId: "i1", campo: "estado", anterior: "EN_REVISION", nuevo: "APROBADO", contexto: "Economía · Informe de seguimiento 2026-2", licenciatura: "Economía" },
+  { id: "b5", fecha: hace(40), usuario: AUXILIAR_DEMO, rol: "AUXILIAR", tipo: "PLAN", accion: "Agregó una evidencia al informe de seguimiento", entidad: "avance_recomendacion", entidadId: "r2", campo: "evidencia agregada · Informe 2027-1", anterior: null, nuevo: "acta_comite.docx → /Evidencias/Actuaría/2024-2029/Informe-2027-1/Rec-02/…", contexto: "Actuaría · Recomendación: Actualizar las asignaturas optativas…", licenciatura: "Actuaría" },
+  { id: "b4", fecha: hace(42), usuario: AUXILIAR_DEMO, rol: "AUXILIAR", tipo: "PLAN", accion: "Actualizó el avance de una recomendación del informe", entidad: "avance_recomendacion", entidadId: "r2", campo: "porcentaje · Informe 2027-1", anterior: "40", nuevo: "60", contexto: "Actuaría · Recomendación: Actualizar las asignaturas optativas…", licenciatura: "Actuaría" },
+  { id: "b3", fecha: hace(60 * 5), usuario: CAPTURA_DEMO, rol: "CAPTURA", tipo: "PLAN", accion: "Editó una recomendación del plan", entidad: "recomendacion", entidadId: "r1", campo: "fecha de cumplimiento", anterior: "2026-06-30", nuevo: "2026-12-15", contexto: "Actuaría · Recomendación: Incrementar el número de profesores…", licenciatura: "Actuaría" },
+  { id: "b2", fecha: hace(60 * 26), usuario: ADMIN_DEMO, rol: "ADMINISTRADOR", tipo: "CICLOS", accion: "Inició un ciclo de acreditación", entidad: "ciclo_acreditacion", entidadId: "c1", campo: "alta", anterior: null, nuevo: "2024-2029", contexto: "Sociología · Ciclo 2024-2029", licenciatura: "Sociología" },
+  { id: "b1", fecha: hace(60 * 27), usuario: CAPTURA_DEMO, rol: "CAPTURA", tipo: "SESION", accion: "Inicio de sesión", entidad: "usuario", entidadId: "u2", campo: "sesion", anterior: null, nuevo: "INICIO_SESION", contexto: "Cuenta: Coordinación Actuaría (actuaria@acatlan.unam.mx)", licenciatura: "Actuaría" },
 ];
 
 export const HISTORICO = [
