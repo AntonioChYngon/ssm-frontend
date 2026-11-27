@@ -289,12 +289,3 @@ export const BITACORA: EventoAuditoria[] = [
   { id: "b1", fecha: hace(60 * 27), usuario: CAPTURA_DEMO, rol: "CAPTURA", tipo: "SESION", accion: "Inicio de sesión", entidad: "usuario", entidadId: "u2", campo: "sesion", anterior: null, nuevo: "INICIO_SESION", contexto: "Cuenta: Coordinación Actuaría (actuaria@acatlan.unam.mx)", licenciatura: "Actuaría" },
 ];
 
-export const HISTORICO = [
-  { licenciatura: "Actuaría", organismo: "CONAC", recomendaciones: 14, atendidas: 93, resultado: "Reacreditada" },
-  { licenciatura: "Derecho", organismo: "CONAED", recomendaciones: 16, atendidas: 100, resultado: "Reacreditada" },
-  { licenciatura: "Economía", organismo: "CONACE", recomendaciones: 12, atendidas: 75, resultado: "Con observaciones" },
-  { licenciatura: "Arquitectura", organismo: "ANPADEH", recomendaciones: 15, atendidas: 87, resultado: "Reacreditada" },
-  { licenciatura: "Relaciones Internacionales", organismo: "ACCECISO", recomendaciones: 9, atendidas: 89, resultado: "Reacreditada" },
-  { licenciatura: "Ingeniería Civil", organismo: "CACEI", recomendaciones: 18, atendidas: 72, resultado: "Con observaciones" },
-];
-
