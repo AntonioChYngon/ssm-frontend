@@ -1,90 +1,137 @@
-import type { Metadata } from "next";
-import { Button, LinkButton } from "@/components/ui/Button";
+"use client";
+
+// Dashboard global del Administrador con datos reales del ciclo vigente de cada licenciatura.
+import { useEffect, useState } from "react";
+import { LinkButton } from "@/components/ui/Button";
 import { EstadosPlanesDonut, TablaPlanes } from "@/components/planes/PlanesDashboard";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { BarraEsperada, Legend } from "@/components/ui/Charts";
-import { Avatar, Badge, Card, DataTable, KpiCard, PageTitle } from "@/components/ui/Display";
-import { SelectField } from "@/components/ui/Field";
-import { AVANCE_LICENCIATURAS, LICENCIATURAS } from "@/lib/mock-data";
-import type { EstadoBadge } from "@/lib/types";
+import { Alert, Avatar, Badge, Card, DataTable, EmptyState, KpiCard, PageTitle } from "@/components/ui/Display";
+import { listarBitacora, obtenerDashboardAdmin } from "@/lib/api";
+import type { AlertaDashboard, DashboardAdmin, EstadoBadge, EventoAuditoria } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Dashboard global" };
+const ETIQUETA: Record<AlertaDashboard["tipo"], { texto: string; badge: EstadoBadge }> = {
+  VENCIDA: { texto: "Fecha límite vencida", badge: "Vencido" },
+  REZAGO: { texto: "Rezago en hito", badge: "Devuelto" },
+  FECHA_LIMITE: { texto: "Vence pronto", badge: "Pendiente" },
+};
 
-type Vencimiento = { licenciatura: string; meta: string; fecha: string; estado: EstadoBadge };
-const VENCIMIENTOS: Vencimiento[] = [
-  { licenciatura: "Ingeniería Civil", meta: "Actualizar laboratorio", fecha: "08/11/2026", estado: "Vencido" },
-  { licenciatura: "Economía", meta: "Programa de tutorías", fecha: "15/11/2026", estado: "Pendiente" },
-  { licenciatura: "Arquitectura", meta: "Seguimiento de egresados", fecha: "22/11/2026", estado: "Pendiente" },
-  { licenciatura: "Pedagogía", meta: "Capacitación docente", fecha: "30/11/2026", estado: "En revisión" },
-];
+const fechaLegible = (fecha: string | null) => (fecha ? fecha.split("-").reverse().join("/") : "—");
+const fechaLarga = (fecha: string) =>
+  new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${fecha}T00:00:00Z`));
+const iniciales = (nombre: string) => nombre.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
+const cuando = (iso: string) =>
+  new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City" }).format(new Date(iso));
+const pct = (n: number, de: number) => (de ? `${Math.round((n / de) * 100)}% del total` : "sin planes aún");
 
-const ACTIVIDAD = [
-  ["JR", "Jorge Ramírez envió el plan de Actuaría", "Hace 25 min"],
-  ["LM", "Laura Méndez subió 4 evidencias (Derecho)", "Hace 1 h"],
-  ["MG", "Validaste el informe de Relaciones Int.", "Hoy, 09:12"],
-  ["PS", "Pablo Sánchez configuró 6 metas (Economía)", "Ayer, 17:40"],
-] as const;
+const DashboardGlobalPage = () => {
+  const licenciaturas = useLicenciaturasEnUrl();
+  const [datos, setDatos] = useState<DashboardAdmin | null>(null);
+  const [actividad, setActividad] = useState<EventoAuditoria[] | null>(null);
+  const [error, setError] = useState<string>();
 
-const DashboardGlobalPage = () => (
-  <>
-    <PageTitle
-      title="Dashboard global"
-      subtitle="Panorama de todas las licenciaturas al 11 de noviembre de 2026."
-      actions={
+  useEffect(() => {
+    if (!licenciaturas.listo) return;
+    let vigente = true;
+    setError(undefined);
+    obtenerDashboardAdmin(licenciaturas.parametro)
+      .then((d) => { if (vigente) setDatos(d); })
+      .catch((e: unknown) => { if (vigente) setError(e instanceof Error ? e.message : "No pudimos cargar el dashboard."); });
+    // Actividad reciente: los últimos movimientos de la bitácora (sin inicios de sesión).
+    listarBitacora({ licenciaturaIds: licenciaturas.parametro, limite: 25 })
+      .then((p) => { if (vigente) setActividad(p.eventos.filter((e) => e.tipo !== "SESION").slice(0, 5)); })
+      .catch(() => { if (vigente) setActividad([]); });
+    return () => { vigente = false; };
+  }, [licenciaturas.listo, licenciaturas.parametro]);
+
+  return (
+    <>
+      <PageTitle
+        title="Dashboard global"
+        subtitle={datos ? `Ciclo vigente de cada licenciatura al ${fechaLarga(datos.fecha)}.` : "Panorama del ciclo vigente de cada licenciatura."}
+        actions={<SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />}
+      />
+      {error && <Alert tipo="error">{error}</Alert>}
+      {!datos && !error && <p className="t-muted" aria-busy="true">Cargando indicadores…</p>}
+      {datos && (
         <>
-          <div style={{ width: 300 }}><SelectField label="Licenciatura" options={["Todas las licenciaturas", ...LICENCIATURAS]} /></div>
-          <div style={{ width: 220 }}><SelectField label="Ciclo de acreditación" options={["2024 – 2029", "2019 – 2024"]} /></div>
-          <Button variant="contorno" icon="descargar">Exportar</Button>
+          <div className="grid-4">
+            <KpiCard tono="azul" titulo="Planes registrados" valor={String(datos.conPlan)} detalle={`de ${datos.licenciaturas} licenciaturas`} icon="documento" />
+            <KpiCard tono="verde" titulo="Planes validados" valor={String(datos.planesValidados)} detalle={pct(datos.planesValidados, datos.conPlan)} icon="check" />
+            <KpiCard
+              tono="naranja"
+              titulo="Por validar"
+              valor={String(datos.porValidar.planes + datos.porValidar.informes)}
+              detalle={`${datos.porValidar.planes} ${datos.porValidar.planes === 1 ? "plan" : "planes"} y ${datos.porValidar.informes} ${datos.porValidar.informes === 1 ? "informe" : "informes"}`}
+              icon="reloj"
+            />
+            <KpiCard
+              tono="rojo"
+              titulo="Metas vencidas o en rezago"
+              valor={String(datos.alertas.vencidas)}
+              detalle={`en ${datos.alertas.licenciaturas} ${datos.alertas.licenciaturas === 1 ? "licenciatura" : "licenciaturas"}`}
+              icon="alerta"
+            />
+          </div>
+          <div className="row row--top row--responsive" style={{ gap: 24 }}>
+            <Card
+              title="Avance real vs. esperado"
+              subtitle="Planes validados: promedio del último avance capturado contra lo comprometido a hoy"
+              className="grow"
+              actions={<div className="row" style={{ gap: 16 }}><Legend color="var(--color-primary)" label="Avance real" /><Legend color="var(--color-accent)" label="Esperado a hoy" /></div>}
+            >
+              {datos.avance.length === 0 && <p className="t-muted" style={{ margin: 0 }}>Aún no hay planes validados en el ciclo vigente.</p>}
+              {datos.avance.map((a) => (
+                <div key={a.licenciatura} className="row" style={{ gap: 16 }}>
+                  <span style={{ width: 240, flex: "0 0 240px" }} className="t-body">{a.licenciatura}</span>
+                  <BarraEsperada real={a.real} esperado={a.esperado} width={360} />
+                  <span className="t-medium">{a.real}%</span>
+                  <span className="t-small t-muted">/ {a.esperado}%</span>
+                </div>
+              ))}
+            </Card>
+            <EstadosPlanesDonut />
+          </div>
+          <TablaPlanes vista="admin" />
+          <div className="row row--top row--responsive" style={{ gap: 24 }}>
+            <Card title="Fechas vencidas y próximas" subtitle="Rezagos en hitos y fechas límite de los próximos 30 días" className="grow"
+              actions={<LinkButton href="/admin/reportes/incumplimiento" variant="texto" icon="chevron-derecha">Ver reporte</LinkButton>}>
+              {datos.vencimientos.length === 0 ? (
+                <EmptyState icon="check" titulo="Sin pendientes" mensaje="No hay fechas vencidas ni rezagos en los planes validados." />
+              ) : (
+                <DataTable<AlertaDashboard>
+                  caption="Fechas vencidas y próximas"
+                  rowKey={(v) => v.clave}
+                  rows={datos.vencimientos}
+                  columns={[
+                    { header: "Licenciatura", width: 170, render: (v) => <span className="t-medium">{v.licenciatura}</span> },
+                    { header: "Recomendación y meta", render: (v) => <>{v.recomendacion}<br /><span className="t-small t-muted">{v.meta}</span></> },
+                    { header: "Avance", width: 120, render: (v) => `${v.actual}% de ${v.comprometido}%` },
+                    { header: "Fecha", width: 110, render: (v) => fechaLegible(v.fechaHito ?? v.fechaLimite) },
+                    { header: "Estado", width: 170, render: (v) => <Badge estado={ETIQUETA[v.tipo].badge}>{ETIQUETA[v.tipo].texto}</Badge> },
+                  ]}
+                />
+              )}
+            </Card>
+            <Card title="Actividad reciente" className="side-380" actions={<LinkButton href="/admin/bitacora" variant="texto" icon="chevron-derecha">Bitácora</LinkButton>}>
+              {actividad === null && <p className="t-muted" style={{ margin: 0 }}>Cargando…</p>}
+              {actividad?.length === 0 && <p className="t-muted" style={{ margin: 0 }}>Sin movimientos recientes.</p>}
+              {actividad?.map((e) => (
+                <div key={e.id} className="row row--top" style={{ gap: 12 }}>
+                  <Avatar iniciales={iniciales(e.usuario.nombre)} />
+                  <div>
+                    <div className="t-medium">{e.usuario.nombre}: {e.accion}</div>
+                    {e.contexto && <div className="t-small">{e.contexto}</div>}
+                    <div className="t-small t-muted">{cuando(e.fecha)}</div>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          </div>
         </>
-      }
-    />
-    <div className="grid-4">
-      <KpiCard tono="azul" titulo="Planes registrados" valor="18" detalle="de 22 licenciaturas" icon="documento" />
-      <KpiCard tono="verde" titulo="Planes validados" valor="11" detalle="61% del total" icon="check" />
-      <KpiCard tono="naranja" titulo="Por validar" valor="5" detalle="3 planes y 2 informes" icon="reloj" />
-      <KpiCard tono="rojo" titulo="Metas vencidas" valor="7" detalle="en 4 licenciaturas" icon="alerta" />
-    </div>
-    <div className="row row--top row--responsive" style={{ gap: 24 }}>
-      <Card title="Avance real vs. esperado" subtitle="Cumplimiento de metas por licenciatura" className="grow"
-        actions={<div className="row" style={{ gap: 16 }}><Legend color="var(--color-primary)" label="Avance real" /><Legend color="var(--color-accent)" label="Esperado al corte" /></div>}>
-        {AVANCE_LICENCIATURAS.map((a) => (
-          <div key={a.licenciatura} className="row" style={{ gap: 16 }}>
-            <span style={{ width: 240, flex: "0 0 240px" }} className="t-body">{a.licenciatura}</span>
-            <BarraEsperada real={a.real} esperado={a.esperado} width={360} />
-            <span className="t-medium">{a.real}%</span>
-            <span className="t-small t-muted">/ {a.esperado}%</span>
-          </div>
-        ))}
-      </Card>
-      <EstadosPlanesDonut />
-    </div>
-    <TablaPlanes vista="admin" />
-    <div className="row row--top row--responsive" style={{ gap: 24 }}>
-      <Card title="Vencimientos próximos" className="grow" actions={<LinkButton href="/admin/reportes/incumplimiento" variant="texto" icon="chevron-derecha">Ver reporte</LinkButton>}>
-        <DataTable<Vencimiento>
-          caption="Vencimientos próximos"
-          rowKey={(v) => v.meta}
-          rows={VENCIMIENTOS}
-          columns={[
-            { header: "Licenciatura", render: (v) => v.licenciatura },
-            { header: "Meta", render: (v) => v.meta },
-            { header: "Fecha", width: 130, render: (v) => v.fecha },
-            { header: "Estado", width: 150, render: (v) => <Badge estado={v.estado} /> },
-          ]}
-        />
-      </Card>
-      <Card title="Actividad reciente" className="side-380">
-        {ACTIVIDAD.map(([ini, texto, cuando]) => (
-          <div key={texto} className="row row--top" style={{ gap: 12 }}>
-            <Avatar iniciales={ini} />
-            <div>
-              <div className="t-medium">{texto}</div>
-              <div className="t-small t-muted">{cuando}</div>
-            </div>
-          </div>
-        ))}
-      </Card>
-    </div>
-  </>
-);
+      )}
+    </>
+  );
+};
 
 export default DashboardGlobalPage;

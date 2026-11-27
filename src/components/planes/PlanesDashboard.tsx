@@ -32,6 +32,8 @@ const ESTADOS: { estado: EstadoPlan; color: string }[] = [
 export const TablaPlanes = ({ vista }: { vista: Vista }) => {
   const { planes, error } = usePlanes();
   const admin = vista === "admin";
+  // La lista viene del ciclo más reciente al más antiguo: el primero es el vigente; los demás se consultan en el histórico.
+  const cicloActual = planes?.[0]?.cicloId;
 
   return (
     <Card
@@ -66,6 +68,8 @@ export const TablaPlanes = ({ vista }: { vista: Vista }) => {
                   p.estado === "EN_REVISION"
                     ? <LinkButton href={`/admin/planes/${p.id}`} icon="check">Revisar</LinkButton>
                     : <LinkButton href={`/admin/planes/${p.id}`} variant="contorno" icon="ver">Ver</LinkButton>
+                ) : p.cicloId !== cicloActual ? (
+                  <LinkButton href={`/licenciatura/historico?cicloId=${p.cicloId}`} variant="contorno" icon="ver">Ver</LinkButton>
                 ) : (
                   <LinkButton href="/licenciatura/plan" variant="contorno" icon={p.estado === "BORRADOR" || p.estado === "DEVUELTO" ? "editar" : "ver"}>
                     {p.estado === "BORRADOR" || p.estado === "DEVUELTO" ? "Editar" : "Ver"}
