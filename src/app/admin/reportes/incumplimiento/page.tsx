@@ -1,62 +1,99 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { Button } from "@/components/ui/Button";
-import { Alert, Badge, Card, DataTable, PageTitle, Progress } from "@/components/ui/Display";
-import { SelectField, TextField } from "@/components/ui/Field";
+import { Alert, Badge, Card, DataTable, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
+import { TextField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
-import { INCUMPLIMIENTOS, LICENCIATURAS } from "@/lib/mock-data";
+import { obtenerIncumplimientos } from "@/lib/api";
 import type { Incumplimiento } from "@/lib/types";
 
-const BRECHAS = { "Cualquier brecha": 0, "Brecha > 10 puntos": 10, "Brecha > 25 puntos": 25 } as const;
-type Brecha = keyof typeof BRECHAS;
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const fechaLegible = (fecha: string | null) => fecha ? fecha.split("-").reverse().join("/") : "Sin fecha";
+const mensaje = (error: unknown) => error instanceof Error ? error.message : "No pudimos generar el reporte.";
 
 const IncumplimientoPage = () => {
-  const [fechaCorte, setFechaCorte] = useState("2026-11-30");
-  const [brecha, setBrecha] = useState<Brecha>("Brecha > 10 puntos");
-  const [licenciatura, setLicenciatura] = useState("Todas las licenciaturas");
-  const [aplicado, setAplicado] = useState({ brecha, licenciatura });
+  const licenciaturas = useLicenciaturasEnUrl();
+  const [fechaCorte, setFechaCorte] = useState(hoy);
+  const [porcentaje, setPorcentaje] = useState("50");
+  const [filas, setFilas] = useState<Incumplimiento[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState<string>();
+  const [consulta, setConsulta] = useState<{ fecha: string; porcentaje: number }>();
 
-  const filas = useMemo(
-    () => INCUMPLIMIENTOS.filter((i) => i.esperado - i.real > BRECHAS[aplicado.brecha] && (aplicado.licenciatura.startsWith("Todas") || i.licenciatura === aplicado.licenciatura)),
-    [aplicado],
-  );
-  const afectadas = new Set(filas.map((f) => f.licenciatura)).size;
+  const afectadas = useMemo(() => new Set((filas ?? []).map((f) => f.licenciaturaId)).size, [filas]);
+  const errorPorcentaje = porcentaje === "" || !Number.isInteger(Number(porcentaje)) || Number(porcentaje) < 1 || Number(porcentaje) > 100
+    ? "Escribe un entero entre 1 y 100."
+    : undefined;
+
+  const generar = async () => {
+    setError(undefined);
+    if (!fechaCorte) {
+      setError("Selecciona la fecha de corte.");
+      return;
+    }
+    if (errorPorcentaje) {
+      setError("Revisa el porcentaje esperado.");
+      return;
+    }
+    const esperado = Number(porcentaje);
+    setCargando(true);
+    try {
+      const resultado = await obtenerIncumplimientos({ fechaCorte, porcentajeEsperado: esperado, licenciaturaIds: licenciaturas.parametro });
+      setFilas(resultado);
+      setConsulta({ fecha: fechaCorte, porcentaje: esperado });
+    } catch (e) {
+      setError(mensaje(e));
+      setFilas(null);
+    } finally {
+      setCargando(false);
+    }
+  };
 
   return (
     <>
       <PageTitle
         crumbs={[{ label: "Inicio", href: "/admin/dashboard" }, { label: "Reportes" }, { label: "Incumplimiento" }]}
-        title="Reporte de incumplimiento"
-        subtitle="Metas cuyo avance real está por debajo del porcentaje esperado a la fecha de corte."
-        actions={<><Button variant="contorno" icon="descargar">Exportar PDF</Button><Button variant="secundario" icon="descargar">Exportar Excel</Button></>}
+        title="Reporte ejecutivo de incumplimiento"
+        subtitle="Detecta recomendaciones y metas cuyo avance registrado está debajo del porcentaje requerido en una fecha de corte."
       />
-      <Card>
+      <Card title="Parámetros obligatorios" subtitle="El reporte toma el último avance capturado hasta la fecha indicada.">
         <div className="row row--end row--responsive">
-          <div className="grow"><TextField label="Fecha de corte" icon="calendario" type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} /></div>
-          <div className="grow"><SelectField label="% esperado" options={Object.keys(BRECHAS)} value={brecha} onChange={(e) => setBrecha(e.target.value as Brecha)} /></div>
-          <div className="grow"><SelectField label="Licenciatura" options={["Todas las licenciaturas", ...LICENCIATURAS]} value={licenciatura} onChange={(e) => setLicenciatura(e.target.value)} /></div>
-          <Button variant="texto" onClick={() => { setBrecha("Cualquier brecha"); setLicenciatura("Todas las licenciaturas"); }}>Limpiar</Button>
-          <Button icon="filtro" onClick={() => setAplicado({ brecha, licenciatura })}>Generar reporte</Button>
+          <div className="grow"><TextField label="Fecha de corte" icon="calendario" type="date" required value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} /></div>
+          <div className="grow"><TextField label="Porcentaje esperado" type="number" min={1} max={100} step={1} required value={porcentaje} error={porcentaje !== "" ? errorPorcentaje : undefined} help="Entero de 1 a 100" onChange={(e) => setPorcentaje(e.target.value)} /></div>
+          <SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />
+          <Button icon="filtro" disabled={cargando || !licenciaturas.listo} onClick={() => void generar()}>{cargando ? "Generando…" : "Generar reporte"}</Button>
         </div>
       </Card>
-      <Alert tipo={filas.length ? "error" : "exito"}>
-        {filas.length ? `${filas.length} metas incumplidas en ${afectadas} licenciaturas al ${fechaCorte.split("-").reverse().join("/")}.` : "No hay metas incumplidas con estos filtros."}
-      </Alert>
-      <DataTable<Incumplimiento>
-        caption="Metas incumplidas"
-        rows={filas}
-        rowKey={(i) => `${i.licenciatura}-${i.meta}`}
-        columns={[
-          { header: "Licenciatura", width: 250, render: (i) => <span className="t-medium">{i.licenciatura}</span> },
-          { header: "Meta", render: (i) => i.meta },
-          { header: "Fecha compromiso", width: 170, render: (i) => i.fechaCompromiso },
-          { header: "% esperado", width: 120, render: (i) => `${i.esperado}%` },
-          { header: "% real", width: 150, render: (i) => <Progress value={i.real} width={80} /> },
-          { header: "Brecha", width: 120, render: (i) => <Badge estado={i.esperado - i.real >= 30 ? "Vencido" : "Pendiente"}>−{i.esperado - i.real} pts</Badge> },
-        ]}
-      />
-      <p className="row t-small t-muted" style={{ gap: 8, margin: 0 }}><Icon name="info" size={18} />La brecha es la diferencia entre el % esperado y el % real reportado en el último informe.</p>
+      {error && <Alert tipo="error">{error}</Alert>}
+      {consulta && filas && (
+        <Alert tipo={filas.length ? "advertencia" : "exito"}>
+          {filas.length
+            ? `${filas.length} ${filas.length === 1 ? "meta identificada" : "metas identificadas"} en ${afectadas} ${afectadas === 1 ? "licenciatura" : "licenciaturas"}, con avance menor a ${consulta.porcentaje}% al ${fechaLegible(consulta.fecha)}.`
+            : `No hay incumplimientos por debajo de ${consulta.porcentaje}% al ${fechaLegible(consulta.fecha)}.`}
+        </Alert>
+      )}
+      {filas === null && !cargando && !error && <EmptyState icon="tendencia-baja" titulo="Genera el reporte" mensaje="Selecciona la fecha de corte, el porcentaje esperado y las licenciaturas que quieres consultar." />}
+      {cargando && <p className="t-muted" role="status">Consultando avances…</p>}
+      {filas && filas.length > 0 && (
+        <DataTable<Incumplimiento>
+          caption="Recomendaciones y metas por debajo del avance esperado"
+          rows={filas}
+          rowKey={(f) => f.id}
+          columns={[
+            { header: "Licenciatura", width: 190, render: (f) => <><span className="t-medium">{f.licenciatura}</span><br /><span className="t-small t-muted">Ciclo {f.ciclo}</span></> },
+            { header: "Recomendación", width: 300, render: (f) => <><span className="t-medium">Recomendación {f.numeroRecomendacion}</span><br /><span className="t-small t-muted">{f.indicador}</span><br />{f.recomendacion}</> },
+            { header: "Meta", render: (f) => <>{f.meta}<br /><span className="t-small t-muted">Compromiso: {fechaLegible(f.fechaCompromiso)}{f.porcentajeMeta === null ? "" : ` · ${f.porcentajeMeta}% propio`}</span></> },
+            { header: "Avance al corte", width: 160, render: (f) => <Progress value={f.real} width={80} /> },
+            { header: "Brecha", width: 120, render: (f) => <Badge estado={f.brecha >= 25 ? "Vencido" : "Pendiente"}>−{f.brecha} pts</Badge> },
+          ]}
+        />
+      )}
+      <p className="row t-small t-muted" style={{ gap: 8, margin: 0 }}><Icon name="info" size={18} />Una recomendación sin avance registrado se considera con 0% para este reporte.</p>
     </>
   );
 };
