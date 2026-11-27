@@ -135,6 +135,8 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
           <Icon name="campana" size={22} />
           {notificacionesNuevas > 0 && <span className="app-header__count">{notificacionesNuevas > 99 ? "99+" : notificacionesNuevas}</span>}
         </button>
+        {/* HU-19: Ayuda accesible desde cualquier pantalla. */}
+        <Link href="/ayuda" className="app-header__btn" aria-label="Ayuda y manual de usuario" title="Ayuda y manual de usuario"><Icon name="ayuda" size={22} /></Link>
         <Link href="/perfil" className="app-header__btn" aria-label="Configuración y perfil"><Icon name="engrane" size={22} /></Link>
         <div className="row" style={{ gap: 12, paddingLeft: 8 }}>
           <Avatar iniciales={perfil.iniciales} size={40} accent />
@@ -160,6 +162,7 @@ export const AppShell = ({ area, children }: { area: Area; children: ReactNode }
           ))}
           <span className="spacer" />
           <div className="sidebar__divider" />
+          <Link href="/ayuda" className="sidebar__item" aria-current={pathname.startsWith("/ayuda") ? "page" : undefined}><Icon name="ayuda" size={20} />Ayuda</Link>
           <Link href="/perfil" className="sidebar__item" aria-current={pathname === "/perfil" ? "page" : undefined}><Icon name="usuario" size={20} />Mi perfil</Link>
           <button type="button" className="sidebar__item" style={{ background: "none", border: 0, cursor: "pointer", textAlign: "left" }} onClick={cerrarSesion}>
             <Icon name="salir" size={20} />Cerrar sesión
