@@ -321,14 +321,24 @@ export type FiltrosBitacora = {
 };
 
 export type Incumplimiento = {
+  id: string;
+  licenciaturaId: string;
   licenciatura: string;
+  ciclo: string;
+  recomendacionId: string;
+  numeroRecomendacion: number;
+  indicador: string;
+  recomendacion: string;
+  metaId: string | null;
   meta: string;
-  fechaCompromiso: string;
+  fechaCompromiso: string | null;
+  porcentajeMeta: number | null;
   esperado: number;
   real: number;
+  brecha: number;
 };
 
-export type AtencionLicenciatura = { licenciatura: string; atendidas: number; enProceso: number; sinAtender: number };
+export type AtencionLicenciatura = { licenciaturaId: string; licenciatura: string; atendidas: number; enProceso: number; sinAtender: number };
 
 export type AvanceLicenciatura = { licenciatura: string; real: number; esperado: number };
 
@@ -422,7 +432,7 @@ export type GuardarMetasPayload = {
 /** HU-05 · POST /planes/:id/devolver */
 export type DevolverPlanPayload = { motivo: string; observaciones: { recomendacionId: string; comentario: string }[] };
 
-// HU-15 · GET /reportes/atencion?licenciaturaId= → AtencionLicenciatura[] (definido arriba)
+// HU-15 · GET /reportes/atencion?licenciaturaIds=1,2 → AtencionLicenciatura[] (definido arriba)
 
 /** Mi perfil · GET /auth/actividad: últimos movimientos de la propia cuenta. */
 export type TipoActividad = "SESION" | "SEGURIDAD" | "PLAN" | "CUENTAS" | "CICLOS" | "OTRO";

@@ -24,6 +24,7 @@ import type {
   GuardarMetasPayload,
   InformeDetalle,
   InformeResumen,
+  Incumplimiento,
   MiInforme,
   MiPlan,
   Notificacion,
@@ -550,10 +551,19 @@ export const guardarMetas = async (recomendacionId: string, datos: GuardarMetasP
   });
 };
 
-/** HU-15 · GET /reportes/atencion?licenciaturaId= */
-export const obtenerResumenAtencion = async (licenciaturaId?: string): Promise<AtencionLicenciatura[]> => {
-  if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaId ? `?licenciaturaId=${encodeURIComponent(licenciaturaId)}` : ""}`);
-  return mock.ATENCION;
+/** HU-14 · Reporte obligatorio por fecha de corte y porcentaje esperado. */
+export const obtenerIncumplimientos = async (filtros: { fechaCorte: string; porcentajeEsperado: number; licenciaturaIds?: string }): Promise<Incumplimiento[]> => {
+  const parametros = new URLSearchParams({ fechaCorte: filtros.fechaCorte, porcentajeEsperado: String(filtros.porcentajeEsperado) });
+  if (filtros.licenciaturaIds) parametros.set("licenciaturaIds", filtros.licenciaturaIds);
+  if (!USE_MOCKS) return request<Incumplimiento[]>(`/reportes/incumplimiento?${parametros}`);
+  return mock.INCUMPLIMIENTOS.filter((f) => f.real < filtros.porcentajeEsperado && (!filtros.licenciaturaIds || filtros.licenciaturaIds.split(",").includes(f.licenciaturaId)))
+    .map((f) => ({ ...f, esperado: filtros.porcentajeEsperado, brecha: filtros.porcentajeEsperado - f.real }));
+};
+
+/** HU-15 · Resumen por estatus; sin filtro devuelve todas las licenciaturas. */
+export const obtenerResumenAtencion = async (licenciaturaIds?: string): Promise<AtencionLicenciatura[]> => {
+  if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaIds ? `?licenciaturaIds=${encodeURIComponent(licenciaturaIds)}` : ""}`);
+  return licenciaturaIds ? mock.ATENCION.filter((a) => licenciaturaIds.split(",").includes(a.licenciaturaId)) : mock.ATENCION;
 };
 
 // ---------------------------------------------------------------------------

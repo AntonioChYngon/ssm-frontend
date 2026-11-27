@@ -216,24 +216,19 @@ export const AVANCE_LICENCIATURAS: AvanceLicenciatura[] = [
 ];
 
 export const INCUMPLIMIENTOS: Incumplimiento[] = [
-  { licenciatura: "Ingeniería Civil", meta: "Actualizar laboratorio de materiales", fechaCompromiso: "08/11/2026", esperado: 60, real: 20 },
-  { licenciatura: "Ingeniería Civil", meta: "Acervo bibliográfico", fechaCompromiso: "15/11/2026", esperado: 50, real: 25 },
-  { licenciatura: "Economía", meta: "Programa de tutorías", fechaCompromiso: "15/11/2026", esperado: 55, real: 30 },
-  { licenciatura: "Economía", meta: "Seguimiento de egresados", fechaCompromiso: "20/11/2026", esperado: 40, real: 10 },
-  { licenciatura: "Arquitectura", meta: "Movilidad estudiantil", fechaCompromiso: "22/11/2026", esperado: 60, real: 45 },
-  { licenciatura: "Pedagogía", meta: "Capacitación docente", fechaCompromiso: "30/11/2026", esperado: 65, real: 50 },
-  { licenciatura: "Matemáticas Aplicadas y Comp.", meta: "Certificación de laboratorios", fechaCompromiso: "30/11/2026", esperado: 70, real: 55 },
+  { id: "1:1", licenciaturaId: "1", licenciatura: "Ingeniería Civil", ciclo: "2024-2029", recomendacionId: "1", numeroRecomendacion: 1, indicador: "Infraestructura", recomendacion: "Actualizar los laboratorios", metaId: "1", meta: "Actualizar laboratorio de materiales", fechaCompromiso: "2026-11-08", porcentajeMeta: 60, esperado: 60, real: 20, brecha: 40 },
+  { id: "2:2", licenciaturaId: "2", licenciatura: "Economía", ciclo: "2024-2029", recomendacionId: "2", numeroRecomendacion: 2, indicador: "Tutorías", recomendacion: "Fortalecer el acompañamiento", metaId: "2", meta: "Programa de tutorías", fechaCompromiso: "2026-11-15", porcentajeMeta: 55, esperado: 60, real: 30, brecha: 30 },
 ];
 
 export const ATENCION: AtencionLicenciatura[] = [
-  { licenciatura: "Actuaría", atendidas: 7, enProceso: 4, sinAtender: 1 },
-  { licenciatura: "Derecho", atendidas: 12, enProceso: 3, sinAtender: 0 },
-  { licenciatura: "Economía", atendidas: 2, enProceso: 4, sinAtender: 3 },
-  { licenciatura: "Matemáticas Aplicadas y Comp.", atendidas: 5, enProceso: 5, sinAtender: 1 },
-  { licenciatura: "Arquitectura", atendidas: 6, enProceso: 6, sinAtender: 2 },
-  { licenciatura: "Relaciones Internacionales", atendidas: 5, enProceso: 2, sinAtender: 1 },
-  { licenciatura: "Ingeniería Civil", atendidas: 2, enProceso: 7, sinAtender: 4 },
-  { licenciatura: "Pedagogía", atendidas: 3, enProceso: 0, sinAtender: 1 },
+  { licenciaturaId: "1", licenciatura: "Actuaría", atendidas: 7, enProceso: 4, sinAtender: 1 },
+  { licenciaturaId: "2", licenciatura: "Derecho", atendidas: 12, enProceso: 3, sinAtender: 0 },
+  { licenciaturaId: "3", licenciatura: "Economía", atendidas: 2, enProceso: 4, sinAtender: 3 },
+  { licenciaturaId: "4", licenciatura: "Matemáticas Aplicadas y Comp.", atendidas: 5, enProceso: 5, sinAtender: 1 },
+  { licenciaturaId: "5", licenciatura: "Arquitectura", atendidas: 6, enProceso: 6, sinAtender: 2 },
+  { licenciaturaId: "6", licenciatura: "Relaciones Internacionales", atendidas: 5, enProceso: 2, sinAtender: 1 },
+  { licenciaturaId: "7", licenciatura: "Ingeniería Civil", atendidas: 2, enProceso: 7, sinAtender: 4 },
+  { licenciaturaId: "8", licenciatura: "Pedagogía", atendidas: 3, enProceso: 0, sinAtender: 1 },
 ];
 
 export const DEVOLUCIONES: Devolucion[] = [
