@@ -445,3 +445,36 @@ export type Recordatorio = {
   diasRestantes: number | null;
 };
 export type RecordatoriosLicenciatura = { cicloActivo: boolean; diasAntes: number; recordatorios: Recordatorio[] };
+
+/** HU-17 · Recomendaciones transversales (contrato: transversales/reglas.ts en el backend). */
+export type AlcanceCiclos = "vigentes" | "historicos" | "todos";
+export type RecomendacionTransversal = {
+  id: string;
+  licenciatura: { id: string; nombre: string };
+  ciclo: { id: string; nombre: string; vigente: boolean };
+  planEstado: string;
+  categoria: string;
+  indicador: string;
+  recomendacion: string;
+  transversal: boolean;
+  grupo: { id: string; nombre: string } | null;
+  /** % del último informe capturado; null si nunca se capturó. */
+  avance: number | null;
+};
+export type GrupoTransversal = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  licenciaturas: string[];
+  recomendaciones: RecomendacionTransversal[];
+  /** Promedio del % de sus recomendaciones (sin captura cuenta como 0 %); null si no tiene ninguna. */
+  avanceConsolidado: number | null;
+};
+export type FiltrosTransversales = {
+  licenciaturaIds?: string;
+  ciclos?: AlcanceCiclos;
+  soloTransversales?: boolean;
+  grupoId?: string;
+  q?: string;
+};
+export type GrupoTransversalPayload = { nombre: string; descripcion?: string };
