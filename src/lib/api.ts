@@ -4,6 +4,8 @@ import * as mock from "./mock-data";
 import type {
   AtencionLicenciatura,
   CicloHistorico,
+  DashboardAdmin,
+  DashboardLicenciatura,
   DetalleHistorico,
   AvancePayload,
   CambiarAsignacionPayload,
@@ -983,4 +985,42 @@ export const obtenerCicloHistorico = async (id: string): Promise<DetalleHistoric
   const ciclo = CICLOS_HISTORICOS_DEMO.find((c) => c.id === id);
   if (!ciclo) throw new ApiError(404, "Ciclo de acreditación no encontrado.");
   return { ciclo, plan: null, informes: [], atencion: null };
+};
+
+// ---------- Dashboards con datos reales ----------
+
+/** GET /dashboard/admin · indicadores del ciclo vigente de las licenciaturas elegidas (todas sin filtro). */
+export const obtenerDashboardAdmin = async (licenciaturaIds?: string): Promise<DashboardAdmin> => {
+  if (!USE_MOCKS) return request<DashboardAdmin>(`/dashboard/admin${consulta({ licenciaturaIds })}`);
+  await esperar(150);
+  return {
+    fecha: "2026-11-27",
+    licenciaturas: 19,
+    conPlan: 3,
+    planesValidados: 2,
+    porValidar: { planes: 0, informes: 1 },
+    alertas: { vencidas: 2, licenciaturas: 1 },
+    avance: [
+      { licenciatura: "Derecho", real: 45, esperado: 50 },
+      { licenciatura: "Economía", real: 75, esperado: 50 },
+    ],
+    vencimientos: mock.RECORDATORIOS.recordatorios.map((r) => ({ ...r, licenciatura: "Derecho" })),
+  };
+};
+
+/** GET /dashboard/licenciatura · indicadores de la licenciatura de la cuenta. */
+export const obtenerDashboardLicenciatura = async (): Promise<DashboardLicenciatura> => {
+  if (!USE_MOCKS) return request<DashboardLicenciatura>("/dashboard/licenciatura");
+  await esperar(150);
+  return {
+    fecha: "2026-11-27",
+    ciclo: { nombre: "2024-2029", licenciatura: "Actuaría", organismo: "CIEES", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28" },
+    planEstado: "BORRADOR",
+    recomendaciones: 2,
+    atendidas: 0,
+    porVencer: 0,
+    vencidas: 0,
+    avance: { real: 0, esperado: 0 },
+    metas: [{ recomendacion: "Implementar un programa anual de actualización disciplinar", meta: "Cumplir el 100% de las actividades programadas", fecha: "2027-03-31", esperado: 50, actual: 0, estado: "PENDIENTE" }],
+  };
 };

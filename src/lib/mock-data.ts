@@ -1,15 +1,12 @@
 // Datos de ejemplo (los mismos de las pantallas de Figma). Se usan mientras NEXT_PUBLIC_USE_MOCKS=true.
 import type {
   AtencionLicenciatura,
-  AvanceLicenciatura,
-  Devolucion,
   CicloResumen,
   EventoAuditoria,
   Incumplimiento,
   InformeDetalle,
   InformeResumen,
   MiInforme,
-  Meta,
   Notificacion,
   RecordatoriosLicenciatura,
   PlanDetalle,
@@ -104,19 +101,6 @@ export const PLAN_ACTUARIA: PlanDetalle = {
   ultimaRevision: null,
 };
 
-export const METAS: Meta[] = [
-  { id: "m2", recomendacionId: "r2", descripcion: "Diagnóstico con el Comité de Carrera", fechaCompromiso: "2025-06-30", porcentajeEsperado: 25, porcentajeReal: 25 },
-  { id: "m3", recomendacionId: "r2", descripcion: "Propuesta de 3 optativas nuevas", fechaCompromiso: "2025-12-15", porcentajeEsperado: 50, porcentajeReal: 40 },
-  { id: "m4", recomendacionId: "r2", descripcion: "Aprobación del Consejo Técnico", fechaCompromiso: "2026-06-30", porcentajeEsperado: 80, porcentajeReal: 0 },
-];
-
-export const PROXIMAS_METAS = [
-  { meta: "Curso de ciencia de datos", recomendacion: "Recomendación 2", vence: "05/11/2026", real: 0, esperado: 30, estado: "Vencido" as const },
-  { meta: "Actualizar optativas", recomendacion: "Recomendación 2", vence: "20/11/2026", real: 40, esperado: 50, estado: "Pendiente" as const },
-  { meta: "Contratación de 2 PTC", recomendacion: "Recomendación 1", vence: "30/11/2026", real: 80, esperado: 90, estado: "Pendiente" as const },
-  { meta: "Reporte de licencias", recomendacion: "Recomendación 3", vence: "15/12/2026", real: 100, esperado: 100, estado: "Completado" as const },
-];
-
 // ---------- Bloque Informe: mismos casos que db/datos_desarrollo.sql del backend ----------
 
 const resumenInforme = (d: InformeDetalle): InformeResumen => ({
@@ -204,17 +188,6 @@ export const MI_INFORME: MiInforme = {
   anteriores: [],
 };
 
-export const AVANCE_LICENCIATURAS: AvanceLicenciatura[] = [
-  { licenciatura: "Actuaría", real: 82, esperado: 75 },
-  { licenciatura: "Matemáticas Aplicadas y Comp.", real: 64, esperado: 70 },
-  { licenciatura: "Arquitectura", real: 45, esperado: 60 },
-  { licenciatura: "Derecho", real: 91, esperado: 80 },
-  { licenciatura: "Economía", real: 30, esperado: 55 },
-  { licenciatura: "Relaciones Internacionales", real: 72, esperado: 70 },
-  { licenciatura: "Pedagogía", real: 58, esperado: 65 },
-  { licenciatura: "Ingeniería Civil", real: 20, esperado: 50 },
-];
-
 export const INCUMPLIMIENTOS: Incumplimiento[] = [
   { id: "1:1", licenciaturaId: "1", licenciatura: "Ingeniería Civil", ciclo: "2024-2029", recomendacionId: "1", numeroRecomendacion: 1, indicador: "Infraestructura", recomendacion: "Actualizar los laboratorios", metaId: "1", meta: "Actualizar laboratorio de materiales", fechaCompromiso: "2026-11-08", porcentajeMeta: 60, esperado: 60, real: 20, brecha: 40 },
   { id: "2:2", licenciaturaId: "2", licenciatura: "Economía", ciclo: "2024-2029", recomendacionId: "2", numeroRecomendacion: 2, indicador: "Tutorías", recomendacion: "Fortalecer el acompañamiento", metaId: "2", meta: "Programa de tutorías", fechaCompromiso: "2026-11-15", porcentajeMeta: 55, esperado: 60, real: 30, brecha: 30 },
@@ -229,32 +202,6 @@ export const ATENCION: AtencionLicenciatura[] = [
   { licenciaturaId: "6", licenciatura: "Relaciones Internacionales", atendidas: 5, enProceso: 2, sinAtender: 1 },
   { licenciaturaId: "7", licenciatura: "Ingeniería Civil", atendidas: 2, enProceso: 7, sinAtender: 4 },
   { licenciaturaId: "8", licenciatura: "Pedagogía", atendidas: 3, enProceso: 0, sinAtender: 1 },
-];
-
-export const DEVOLUCIONES: Devolucion[] = [
-  {
-    id: "d1",
-    fecha: "05/11/2026",
-    documento: "Plan de mejora 2024–2029",
-    autor: "Mtra. María González",
-    mensaje: "Revisé el plan completo. Faltan evidencias de aprobación y hay fechas fuera del ciclo.",
-    items: [
-      { recomendacion: "Recomendación 2 · Plan de estudios", texto: "Falta adjuntar el acta del Comité de Carrera que aprueba la actualización.", atendida: false },
-      { recomendacion: "Recomendación 4 · Vinculación", texto: "La fecha de cumplimiento (30/06/2030) está fuera del ciclo de acreditación.", atendida: false },
-      { recomendacion: "Recomendación 7 · Movilidad", texto: "Define al menos una meta con su % esperado.", atendida: false },
-    ],
-  },
-  {
-    id: "d2",
-    fecha: "12/09/2026",
-    documento: "Informe de seguimiento 2026-1",
-    autor: "Mtra. María González",
-    mensaje: "Buen avance. Solo ajusta dos porcentajes.",
-    items: [
-      { recomendacion: "Recomendación 1 · Personal académico", texto: "El % real de la meta 2 no coincide con la evidencia.", atendida: true },
-      { recomendacion: "Recomendación 3 · Infraestructura", texto: "Agrega la factura de las licencias.", atendida: true },
-    ],
-  },
 ];
 
 export const RECORDATORIOS: RecordatoriosLicenciatura = {

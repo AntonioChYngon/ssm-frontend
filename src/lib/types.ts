@@ -262,17 +262,6 @@ export type FiltrosInformes = {
   periodo?: string;
 };
 
-export type ObservacionItem = { recomendacion: string; texto: string; atendida: boolean };
-
-export type Devolucion = {
-  id: string;
-  fecha: string;
-  documento: string;
-  autor: string;
-  mensaje: string;
-  items: ObservacionItem[];
-};
-
 export type Notificacion = {
   id: string;
   tipo: TipoNotificacion;
@@ -339,8 +328,6 @@ export type Incumplimiento = {
 };
 
 export type AtencionLicenciatura = { licenciaturaId: string; licenciatura: string; atendidas: number; enProceso: number; sinAtender: number };
-
-export type AvanceLicenciatura = { licenciatura: string; real: number; esperado: number };
 
 export type Sesion = { usuario: Usuario; token: string };
 
@@ -512,4 +499,29 @@ export type DetalleHistorico = {
   plan: PlanResumen | null;
   informes: InformeResumen[];
   atencion: { atendidas: number; enProceso: number; sinAtender: number } | null;
+};
+
+/** Dashboards con datos reales (contrato: dashboard.module.ts en el backend). */
+export type AlertaDashboard = Recordatorio & { licenciatura: string };
+export type DashboardAdmin = {
+  fecha: string;
+  licenciaturas: number;
+  conPlan: number;
+  planesValidados: number;
+  porValidar: { planes: number; informes: number };
+  alertas: { vencidas: number; licenciaturas: number };
+  avance: { licenciatura: string; real: number; esperado: number }[];
+  vencimientos: AlertaDashboard[];
+};
+export type MetaProxima = { recomendacion: string; meta: string; fecha: string; esperado: number; actual: number; estado: "CUMPLIDA" | "PENDIENTE" | "VENCIDA" };
+export type DashboardLicenciatura = {
+  fecha: string;
+  ciclo: { nombre: string; licenciatura: string; organismo: string; vigenciaInicio: string; vigenciaFin: string } | null;
+  planEstado: EstadoPlan | null;
+  recomendaciones: number;
+  atendidas: number;
+  porVencer: number;
+  vencidas: number;
+  avance: { real: number; esperado: number };
+  metas: MetaProxima[];
 };
