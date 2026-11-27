@@ -18,6 +18,9 @@ import type {
   DevolverPlanPayload,
   FiltrosBitacora,
   FiltrosInformes,
+  FiltrosTransversales,
+  GrupoTransversal,
+  GrupoTransversalPayload,
   GuardarMetasPayload,
   InformeDetalle,
   InformeResumen,
@@ -29,6 +32,7 @@ import type {
   PlanResumen,
   RecomendacionPayload,
   RecomendacionPlan,
+  RecomendacionTransversal,
   RecordatoriosLicenciatura,
   Rol,
   Sesion,
@@ -815,3 +819,130 @@ export const historialRecomendacion = async (recomendacionId: string): Promise<E
   await esperar(150);
   return mock.BITACORA.filter((e) => e.entidadId === recomendacionId).reverse();
 };
+
+// ---------- HU-17 · Recomendaciones transversales (solo Administrador) ----------
+
+// Modo demostración: unas recomendaciones de ejemplo y los grupos en memoria.
+const recDemo = (id: string, licenciatura: string, recomendacion: string, avance: number | null, vigente = true): RecomendacionTransversal => ({
+  id,
+  licenciatura: { id: String(LICENCIATURAS_DEMO.indexOf(licenciatura) + 1), nombre: licenciatura },
+  ciclo: { id: `c-${licenciatura}-${vigente}`, nombre: vigente ? "2024-2029" : "2019-2024", vigente },
+  planEstado: "APROBADO",
+  categoria: "Infraestructura y Equipamiento",
+  indicador: "9.1 Laboratorios y equipo",
+  recomendacion,
+  transversal: false,
+  grupo: null,
+  avance,
+});
+let gruposDemo: { id: string; nombre: string; descripcion: string | null }[] = [{ id: "g1", nombre: "Renovación de equipo de cómputo", descripcion: "Laboratorios con equipo y software actualizado" }];
+const recomendacionesDemo: RecomendacionTransversal[] = [
+  { ...recDemo("r1", "Actuaría", "Renovar el equipo de cómputo de los laboratorios de modelación", 40), transversal: true, grupo: { id: "g1", nombre: "Renovación de equipo de cómputo" } },
+  { ...recDemo("r2", "Economía", "Actualizar el software estadístico del laboratorio", 75), transversal: true, grupo: { id: "g1", nombre: "Renovación de equipo de cómputo" } },
+  recDemo("r3", "Derecho", "Adquirir bibliografía especializada en derecho digital", 20),
+  recDemo("r4", "Sociología", "Ampliar el acervo bibliográfico digital", null),
+  recDemo("r5", "Derecho", "Suscribir bases de datos jurídicas en línea", 0, false),
+];
+const enAlcanceDemo = (r: RecomendacionTransversal, ciclos: FiltrosTransversales["ciclos"] = "vigentes") =>
+  ciclos === "todos" || (ciclos === "vigentes") === r.ciclo.vigente;
+const filtrarDemo = (f: FiltrosTransversales) => {
+  const nombres = nombresDemo(f.licenciaturaIds);
+  const texto = f.q?.trim().toLowerCase();
+  return structuredClone(recomendacionesDemo).filter(
+    (r) =>
+      enAlcanceDemo(r, f.ciclos) &&
+      (!nombres || nombres.includes(r.licenciatura.nombre)) &&
+      (!f.soloTransversales || r.transversal) &&
+      (!f.grupoId || r.grupo?.id === f.grupoId) &&
+      (!texto || `${r.recomendacion} ${r.indicador} ${r.grupo?.nombre ?? ""}`.toLowerCase().includes(texto)),
+  );
+};
+
+const parametrosTransversales = (f: FiltrosTransversales) =>
+  consulta({ licenciaturaIds: f.licenciaturaIds, ciclos: f.ciclos, soloTransversales: f.soloTransversales ? "true" : undefined, grupoId: f.grupoId, q: f.q?.trim() || undefined });
+
+/** GET /transversales/recomendaciones · consulta con el filtro "Mostrar sólo recomendaciones transversales". */
+export const consultarRecomendacionesTransversales = async (filtros: FiltrosTransversales): Promise<RecomendacionTransversal[]> => {
+  if (!USE_MOCKS) return request<RecomendacionTransversal[]>(`/transversales/recomendaciones${parametrosTransversales(filtros)}`);
+  await esperar(150);
+  return filtrarDemo(filtros);
+};
+
+/** GET /transversales/grupos · vista agrupada con las licenciaturas que comparten cada grupo y su avance consolidado. */
+export const listarGruposTransversales = async (filtros: FiltrosTransversales): Promise<GrupoTransversal[]> => {
+  if (!USE_MOCKS) return request<GrupoTransversal[]>(`/transversales/grupos${parametrosTransversales({ ...filtros, soloTransversales: undefined, q: undefined })}`);
+  await esperar(150);
+  const recs = filtrarDemo({ ...filtros, soloTransversales: true, grupoId: undefined, q: undefined });
+  return gruposDemo
+    .map((g) => {
+      const miembros = recs.filter((r) => r.grupo?.id === g.id);
+      const licenciaturas = [...new Set(miembros.map((r) => r.licenciatura.nombre))].sort((a, b) => a.localeCompare(b, "es"));
+      const avanceConsolidado = miembros.length ? Math.round(miembros.reduce((s, r) => s + (r.avance ?? 0), 0) / miembros.length) : null;
+      return { ...g, licenciaturas, recomendaciones: miembros, avanceConsolidado };
+    })
+    .filter((g) => !filtros.grupoId || g.id === filtros.grupoId);
+};
+
+/** POST /transversales/grupos */
+export const crearGrupoTransversal = async (datos: GrupoTransversalPayload): Promise<{ id: string; nombre: string; descripcion: string | null }> => {
+  if (!USE_MOCKS) return request<{ id: string; nombre: string; descripcion: string | null }>("/transversales/grupos", { method: "POST", body: JSON.stringify(datos) });
+  await esperar();
+  if (gruposDemo.some((g) => g.nombre === datos.nombre.trim())) throw new ApiError(409, `Ya existe un grupo llamado "${datos.nombre.trim()}".`);
+  const nuevo = { id: crypto.randomUUID(), nombre: datos.nombre.trim(), descripcion: datos.descripcion?.trim() || null };
+  gruposDemo = [...gruposDemo, nuevo];
+  return nuevo;
+};
+
+/** PATCH /transversales/grupos/:id */
+export const editarGrupoTransversal = async (id: string, datos: GrupoTransversalPayload): Promise<void> => {
+  if (!USE_MOCKS) {
+    await request(`/transversales/grupos/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(datos) });
+    return;
+  }
+  await esperar();
+  gruposDemo = gruposDemo.map((g) => (g.id === id ? { ...g, nombre: datos.nombre.trim(), descripcion: datos.descripcion?.trim() || null } : g));
+  recomendacionesDemo.forEach((r) => { if (r.grupo?.id === id) r.grupo = { id, nombre: datos.nombre.trim() }; });
+};
+
+/** DELETE /transversales/grupos/:id · sus recomendaciones dejan de ser transversales. */
+export const eliminarGrupoTransversal = async (id: string): Promise<void> => {
+  if (!USE_MOCKS) {
+    await request(`/transversales/grupos/${encodeURIComponent(id)}`, { method: "DELETE" });
+    return;
+  }
+  await esperar();
+  gruposDemo = gruposDemo.filter((g) => g.id !== id);
+  recomendacionesDemo.forEach((r) => { if (r.grupo?.id === id) Object.assign(r, { grupo: null, transversal: false }); });
+};
+
+/** POST /transversales/marcar · selector: una o varias recomendaciones como transversales en un grupo. */
+export const marcarTransversales = async (grupoId: string, recomendacionIds: string[]): Promise<void> => {
+  if (!USE_MOCKS) {
+    await request("/transversales/marcar", { method: "POST", body: JSON.stringify({ grupoId, recomendacionIds }) });
+    return;
+  }
+  await esperar();
+  const grupo = gruposDemo.find((g) => g.id === grupoId);
+  if (!grupo) throw new ApiError(404, "Grupo transversal no encontrado.");
+  recomendacionesDemo.forEach((r) => { if (recomendacionIds.includes(r.id)) Object.assign(r, { grupo: { id: grupo.id, nombre: grupo.nombre }, transversal: true }); });
+};
+
+/** POST /transversales/desmarcar */
+export const desmarcarTransversales = async (recomendacionIds: string[]): Promise<void> => {
+  if (!USE_MOCKS) {
+    await request("/transversales/desmarcar", { method: "POST", body: JSON.stringify({ recomendacionIds }) });
+    return;
+  }
+  await esperar();
+  recomendacionesDemo.forEach((r) => { if (recomendacionIds.includes(r.id)) Object.assign(r, { grupo: null, transversal: false }); });
+};
+
+/** GET /transversales/reporte/:formato · reporte consolidado. */
+export const descargarReporteTransversales = async (filtros: FiltrosTransversales, formato: FormatoReporte = "pdf"): Promise<Blob> => {
+  if (USE_MOCKS) throw new ApiError(501, `El reporte ${formato === "docx" ? "en Word" : "en PDF"} requiere conectar el backend.`);
+  return requestBlob(`/transversales/reporte/${formato}${parametrosTransversales({ licenciaturaIds: filtros.licenciaturaIds, ciclos: filtros.ciclos })}`, "No pudimos generar el reporte.");
+};
+
+/** Recomendaciones_Transversales_vigentes.pdf */
+export const nombreReporteTransversales = (ciclos: FiltrosTransversales["ciclos"] = "vigentes", formato: FormatoReporte) =>
+  `Recomendaciones_Transversales_${ciclos}.${formato}`;

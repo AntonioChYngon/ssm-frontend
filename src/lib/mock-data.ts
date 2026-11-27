@@ -303,33 +303,3 @@ export const HISTORICO = [
   { licenciatura: "Ingeniería Civil", organismo: "CACEI", recomendaciones: 18, atendidas: 72, resultado: "Con observaciones" },
 ];
 
-export const TRANSVERSALES = [
-  {
-    grupo: "Infraestructura",
-    resumen: "11 recomendaciones · 6 licenciaturas",
-    items: [
-      { texto: "Equipar laboratorio de cómputo con software estadístico licenciado.", licenciatura: "Actuaría" },
-      { texto: "Actualizar el laboratorio de materiales y su equipo de medición.", licenciatura: "Ingeniería Civil" },
-      { texto: "Ampliar el acervo bibliográfico digital especializado.", licenciatura: "Arquitectura" },
-    ],
-  },
-  {
-    grupo: "Personal académico",
-    resumen: "14 recomendaciones · 8 licenciaturas",
-    items: [
-      { texto: "Incrementar profesores de tiempo completo con posgrado.", licenciatura: "Actuaría" },
-      { texto: "Programa de formación docente en evaluación por competencias.", licenciatura: "Pedagogía" },
-    ],
-  },
-];
-
-export const ETIQUETAS = [
-  { nombre: "Todas", total: 86 },
-  { nombre: "Personal académico", total: 14 },
-  { nombre: "Infraestructura", total: 11 },
-  { nombre: "Plan de estudios", total: 9 },
-  { nombre: "Vinculación", total: 7 },
-  { nombre: "Investigación", total: 6 },
-  { nombre: "Gestión administrativa", total: 5 },
-  { nombre: "Sin etiqueta", total: 34 },
-];
