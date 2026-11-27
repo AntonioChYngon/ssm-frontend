@@ -486,5 +486,30 @@ export type FiltrosTransversales = {
   soloTransversales?: boolean;
   grupoId?: string;
   q?: string;
+  /** HU-16: un ciclo concreto (vigente o histórico). */
+  cicloId?: string;
 };
 export type GrupoTransversalPayload = { nombre: string; descripcion?: string };
+
+/** HU-16 · Archivo histórico (contrato: historico/reglas.ts y historico.module.ts en el backend). */
+export type CicloHistorico = {
+  id: string;
+  nombre: string;
+  licenciatura: { id: string; nombre: string };
+  organismo: string;
+  fechaEmision: string;
+  vigenciaInicio: string;
+  vigenciaFin: string;
+  estado: string;
+  /** false = ciclo histórico: solo consulta. */
+  activo: boolean;
+  /** "28 de noviembre de 2019 al 28 de noviembre de 2024 · CONAED" */
+  etiqueta: string;
+  carpeta: string | null;
+};
+export type DetalleHistorico = {
+  ciclo: CicloHistorico;
+  plan: PlanResumen | null;
+  informes: InformeResumen[];
+  atencion: { atendidas: number; enProceso: number; sinAtender: number } | null;
+};

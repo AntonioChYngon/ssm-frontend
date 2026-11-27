@@ -12,6 +12,7 @@ import { ChipGroup, ConfirmModal } from "@/components/ui/Interactive";
 import { Icon } from "@/components/ui/Icon";
 import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
 import { DescargasReporte } from "@/components/reportes/DescargasReporte";
+import { AvisoCicloConsultado, useCicloConsultado } from "@/components/historico/ConsultaHistorica";
 import {
   consultarRecomendacionesTransversales,
   crearGrupoTransversal,
@@ -36,7 +37,11 @@ const mensaje = (error: unknown, porDefecto: string) => (error instanceof Error 
 const textoAvance = (avance: number | null) => (avance === null ? <span className="t-small t-muted">Sin capturar</span> : <Progress value={avance} width={90} />);
 
 const TransversalesPage = () => {
-  const { ids: licenciaturas, cambiar: cambiarLicenciaturas, parametro: licenciaturaIds, listo } = useLicenciaturasEnUrl();
+  const { ids: licenciaturas, cambiar: cambiarLicenciaturas, parametro: licenciaturaIds, listo: listoLicenciaturas } = useLicenciaturasEnUrl();
+  // HU-16: ?cicloId= limita todo a ese ciclo (vigente o histórico).
+  const ciclo = useCicloConsultado();
+  const listo = listoLicenciaturas && ciclo.listo;
+  const cicloId = ciclo.cicloId;
   const [alcance, setAlcance] = useState<AlcanceCiclos>("vigentes");
   const [soloTransversales, setSoloTransversales] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -63,7 +68,7 @@ const TransversalesPage = () => {
     if (!listo) return;
     setErrorCarga(undefined);
     try {
-      const filtros = { licenciaturaIds, ciclos: alcance };
+      const filtros = { licenciaturaIds, ciclos: alcance, cicloId };
       const [g, r] = await Promise.all([
         listarGruposTransversales(filtros),
         consultarRecomendacionesTransversales({ ...filtros, soloTransversales, grupoId: grupoActivo ?? undefined, q: texto }),
@@ -75,7 +80,7 @@ const TransversalesPage = () => {
       setErrorCarga(mensaje(error, "No pudimos cargar las recomendaciones."));
       setRecomendaciones([]);
     }
-  }, [listo, licenciaturaIds, alcance, soloTransversales, grupoActivo, texto]);
+  }, [listo, licenciaturaIds, alcance, cicloId, soloTransversales, grupoActivo, texto]);
 
   useEffect(() => {
     void cargar();
@@ -164,7 +169,7 @@ const TransversalesPage = () => {
         actions={
           <DescargasReporte
             documento="Reporte de recomendaciones transversales"
-            descargar={(formato) => descargarReporteTransversales({ licenciaturaIds, ciclos: alcance }, formato)}
+            descargar={(formato) => descargarReporteTransversales({ licenciaturaIds, ciclos: alcance, cicloId }, formato)}
             nombreArchivo={(formato) => nombreReporteTransversales(alcance, formato)}
             onAviso={setAviso}
             disabled={!grupos.some((g) => g.recomendaciones.length)}
@@ -173,10 +178,11 @@ const TransversalesPage = () => {
       />
 
       <div className="stack" style={{ gap: 24 }}>
+        <AvisoCicloConsultado etiqueta={ciclo.etiqueta} alQuitar={ciclo.quitar} />
         <Card title="Consulta" style={{ gap: 16 }}>
           <div className="row row--wrap" style={{ gap: 16, alignItems: "flex-end" }}>
             <SelectorLicenciaturas seleccion={licenciaturas} alCambiar={cambiarLicenciaturas} />
-            <ChipGroup label="Ciclos de acreditación" options={Object.keys(ALCANCES)} value="Ciclo vigente" onChange={(o) => setAlcance(ALCANCES[o] ?? "vigentes")} />
+            {!cicloId && <ChipGroup label="Ciclos de acreditación" options={Object.keys(ALCANCES)} value="Ciclo vigente" onChange={(o) => setAlcance(ALCANCES[o] ?? "vigentes")} />}
           </div>
           <div className="row row--wrap" style={{ gap: 16, alignItems: "flex-end" }}>
             <div className="grow" style={{ minWidth: 260 }}>

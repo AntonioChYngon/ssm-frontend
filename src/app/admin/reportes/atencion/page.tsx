@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
+import { AvisoCicloConsultado, useCicloConsultado } from "@/components/historico/ConsultaHistorica";
 import { BarraApilada, Donut, Legend } from "@/components/ui/Charts";
 import { Alert, Card, DataTable, EmptyState, KpiCard, PageTitle } from "@/components/ui/Display";
 import { obtenerResumenAtencion } from "@/lib/api";
@@ -14,19 +15,21 @@ const mensaje = (error: unknown) => error instanceof Error ? error.message : "No
 
 const AtencionPage = () => {
   const licenciaturas = useLicenciaturasEnUrl();
+  // HU-16: ?cicloId= consulta un ciclo histórico.
+  const ciclo = useCicloConsultado();
   const [filas, setFilas] = useState<AtencionLicenciatura[] | null>(null);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    if (!licenciaturas.listo) return;
+    if (!licenciaturas.listo || !ciclo.listo) return;
     let vigente = true;
     setFilas(null);
     setError(undefined);
-    obtenerResumenAtencion(licenciaturas.parametro)
+    obtenerResumenAtencion(licenciaturas.parametro, ciclo.cicloId)
       .then((datos) => vigente && setFilas(datos))
       .catch((e: unknown) => { if (vigente) { setError(mensaje(e)); setFilas([]); } });
     return () => { vigente = false; };
-  }, [licenciaturas.listo, licenciaturas.parametro]);
+  }, [licenciaturas.listo, licenciaturas.parametro, ciclo.listo, ciclo.cicloId]);
 
   const totales = useMemo(() => (filas ?? []).reduce(
     (t, f) => ({ atendidas: t.atendidas + f.atendidas, enProceso: t.enProceso + f.enProceso, sinAtender: t.sinAtender + f.sinAtender }),
@@ -43,6 +46,7 @@ const AtencionPage = () => {
         subtitle="Conteo cuantitativo de recomendaciones atendidas, en proceso y no atendidas en el ciclo vigente."
         actions={<SelectorLicenciaturas seleccion={licenciaturas.ids} alCambiar={licenciaturas.cambiar} />}
       />
+      <AvisoCicloConsultado etiqueta={ciclo.etiqueta} alQuitar={ciclo.quitar} />
       {error && <Alert tipo="error">{error}</Alert>}
       {filas === null && !error && <p className="t-muted" role="status">Calculando el resumen…</p>}
       {filas && (

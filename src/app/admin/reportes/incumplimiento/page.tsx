@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { SelectorLicenciaturas, useLicenciaturasEnUrl } from "@/components/filtros/SelectorLicenciaturas";
+import { AvisoCicloConsultado, useCicloConsultado } from "@/components/historico/ConsultaHistorica";
 import { Button } from "@/components/ui/Button";
 import { Alert, Badge, Card, DataTable, EmptyState, PageTitle, Progress } from "@/components/ui/Display";
 import { TextField } from "@/components/ui/Field";
@@ -18,6 +19,8 @@ const mensaje = (error: unknown) => error instanceof Error ? error.message : "No
 
 const IncumplimientoPage = () => {
   const licenciaturas = useLicenciaturasEnUrl();
+  // HU-16: ?cicloId= genera el reporte sobre un ciclo histórico.
+  const ciclo = useCicloConsultado();
   const [fechaCorte, setFechaCorte] = useState(hoy);
   const [porcentaje, setPorcentaje] = useState("50");
   const [filas, setFilas] = useState<Incumplimiento[] | null>(null);
@@ -43,7 +46,7 @@ const IncumplimientoPage = () => {
     const esperado = Number(porcentaje);
     setCargando(true);
     try {
-      const resultado = await obtenerIncumplimientos({ fechaCorte, porcentajeEsperado: esperado, licenciaturaIds: licenciaturas.parametro });
+      const resultado = await obtenerIncumplimientos({ fechaCorte, porcentajeEsperado: esperado, licenciaturaIds: licenciaturas.parametro, cicloId: ciclo.cicloId });
       setFilas(resultado);
       setConsulta({ fecha: fechaCorte, porcentaje: esperado });
     } catch (e) {
@@ -61,6 +64,7 @@ const IncumplimientoPage = () => {
         title="Reporte ejecutivo de incumplimiento"
         subtitle="Detecta recomendaciones y metas cuyo avance registrado está debajo del porcentaje requerido en una fecha de corte."
       />
+      <AvisoCicloConsultado etiqueta={ciclo.etiqueta} alQuitar={ciclo.quitar} />
       <Card title="Parámetros obligatorios" subtitle="El reporte toma el último avance capturado hasta la fecha indicada.">
         <div className="row row--end row--responsive">
           <div className="grow"><TextField label="Fecha de corte" icon="calendario" type="date" required value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} /></div>

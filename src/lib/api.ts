@@ -3,6 +3,8 @@
 import * as mock from "./mock-data";
 import type {
   AtencionLicenciatura,
+  CicloHistorico,
+  DetalleHistorico,
   AvancePayload,
   CambiarAsignacionPayload,
   Actividad,
@@ -552,17 +554,20 @@ export const guardarMetas = async (recomendacionId: string, datos: GuardarMetasP
 };
 
 /** HU-14 · Reporte obligatorio por fecha de corte y porcentaje esperado. */
-export const obtenerIncumplimientos = async (filtros: { fechaCorte: string; porcentajeEsperado: number; licenciaturaIds?: string }): Promise<Incumplimiento[]> => {
+export const obtenerIncumplimientos = async (filtros: { fechaCorte: string; porcentajeEsperado: number; licenciaturaIds?: string; cicloId?: string }): Promise<Incumplimiento[]> => {
   const parametros = new URLSearchParams({ fechaCorte: filtros.fechaCorte, porcentajeEsperado: String(filtros.porcentajeEsperado) });
   if (filtros.licenciaturaIds) parametros.set("licenciaturaIds", filtros.licenciaturaIds);
+  // HU-16: sobre un ciclo histórico.
+  if (filtros.cicloId) parametros.set("cicloId", filtros.cicloId);
   if (!USE_MOCKS) return request<Incumplimiento[]>(`/reportes/incumplimiento?${parametros}`);
   return mock.INCUMPLIMIENTOS.filter((f) => f.real < filtros.porcentajeEsperado && (!filtros.licenciaturaIds || filtros.licenciaturaIds.split(",").includes(f.licenciaturaId)))
     .map((f) => ({ ...f, esperado: filtros.porcentajeEsperado, brecha: filtros.porcentajeEsperado - f.real }));
 };
 
 /** HU-15 · Resumen por estatus; sin filtro devuelve todas las licenciaturas. */
-export const obtenerResumenAtencion = async (licenciaturaIds?: string): Promise<AtencionLicenciatura[]> => {
-  if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${licenciaturaIds ? `?licenciaturaIds=${encodeURIComponent(licenciaturaIds)}` : ""}`);
+export const obtenerResumenAtencion = async (licenciaturaIds?: string, cicloId?: string): Promise<AtencionLicenciatura[]> => {
+  // HU-16: con cicloId, el resumen es de ese ciclo (vigente o histórico).
+  if (!USE_MOCKS) return request<AtencionLicenciatura[]>(`/reportes/atencion${consulta({ licenciaturaIds, cicloId })}`);
   return licenciaturaIds ? mock.ATENCION.filter((a) => licenciaturaIds.split(",").includes(a.licenciaturaId)) : mock.ATENCION;
 };
 
@@ -869,7 +874,7 @@ const filtrarDemo = (f: FiltrosTransversales) => {
 };
 
 const parametrosTransversales = (f: FiltrosTransversales) =>
-  consulta({ licenciaturaIds: f.licenciaturaIds, ciclos: f.ciclos, soloTransversales: f.soloTransversales ? "true" : undefined, grupoId: f.grupoId, q: f.q?.trim() || undefined });
+  consulta({ licenciaturaIds: f.licenciaturaIds, ciclos: f.ciclos, soloTransversales: f.soloTransversales ? "true" : undefined, grupoId: f.grupoId, q: f.q?.trim() || undefined, cicloId: f.cicloId });
 
 /** GET /transversales/recomendaciones · consulta con el filtro "Mostrar sólo recomendaciones transversales". */
 export const consultarRecomendacionesTransversales = async (filtros: FiltrosTransversales): Promise<RecomendacionTransversal[]> => {
@@ -950,9 +955,32 @@ export const desmarcarTransversales = async (recomendacionIds: string[]): Promis
 /** GET /transversales/reporte/:formato · reporte consolidado. */
 export const descargarReporteTransversales = async (filtros: FiltrosTransversales, formato: FormatoReporte = "pdf"): Promise<Blob> => {
   if (USE_MOCKS) throw new ApiError(501, `El reporte ${formato === "docx" ? "en Word" : "en PDF"} requiere conectar el backend.`);
-  return requestBlob(`/transversales/reporte/${formato}${parametrosTransversales({ licenciaturaIds: filtros.licenciaturaIds, ciclos: filtros.ciclos })}`, "No pudimos generar el reporte.");
+  return requestBlob(`/transversales/reporte/${formato}${parametrosTransversales({ licenciaturaIds: filtros.licenciaturaIds, ciclos: filtros.ciclos, cicloId: filtros.cicloId })}`, "No pudimos generar el reporte.");
 };
 
 /** Recomendaciones_Transversales_vigentes.pdf */
 export const nombreReporteTransversales = (ciclos: FiltrosTransversales["ciclos"] = "vigentes", formato: FormatoReporte) =>
   `Recomendaciones_Transversales_${ciclos}.${formato}`;
+
+// ---------- HU-16 · Archivo histórico ----------
+
+const CICLOS_HISTORICOS_DEMO: CicloHistorico[] = [
+  { id: "h2", nombre: "2024-2029", licenciatura: { id: "3", nombre: "Derecho" }, organismo: "CONAED", fechaEmision: "2024-11-28", vigenciaInicio: "2024-11-28", vigenciaFin: "2029-11-28", estado: "VIGENTE", activo: true, etiqueta: "28 de noviembre de 2024 al 28 de noviembre de 2029 · CONAED", carpeta: "/Evidencias/Derecho/2024-2029/" },
+  { id: "h1", nombre: "2019-2024", licenciatura: { id: "3", nombre: "Derecho" }, organismo: "CONAED", fechaEmision: "2019-11-28", vigenciaInicio: "2019-11-28", vigenciaFin: "2024-11-28", estado: "HISTORICO", activo: false, etiqueta: "28 de noviembre de 2019 al 28 de noviembre de 2024 · CONAED", carpeta: "/Evidencias/Derecho/2019-2024/" },
+];
+
+/** GET /historico/ciclos · ciclos vigentes e históricos para elegir por vigencia; `fecha` busca por una fecha de la constancia. */
+export const listarCiclosHistoricos = async (filtros: { licenciaturaIds?: string; fecha?: string } = {}): Promise<CicloHistorico[]> => {
+  if (!USE_MOCKS) return request<CicloHistorico[]>(`/historico/ciclos${consulta({ licenciaturaIds: filtros.licenciaturaIds, fecha: filtros.fecha || undefined })}`);
+  await esperar(150);
+  return CICLOS_HISTORICOS_DEMO.filter((c) => !filtros.fecha || c.fechaEmision === filtros.fecha || (c.vigenciaInicio <= filtros.fecha && filtros.fecha <= c.vigenciaFin));
+};
+
+/** GET /historico/ciclos/:id · plan, informes y resumen de atención del ciclo. */
+export const obtenerCicloHistorico = async (id: string): Promise<DetalleHistorico> => {
+  if (!USE_MOCKS) return request<DetalleHistorico>(`/historico/ciclos/${encodeURIComponent(id)}`);
+  await esperar(150);
+  const ciclo = CICLOS_HISTORICOS_DEMO.find((c) => c.id === id);
+  if (!ciclo) throw new ApiError(404, "Ciclo de acreditación no encontrado.");
+  return { ciclo, plan: null, informes: [], atencion: null };
+};
